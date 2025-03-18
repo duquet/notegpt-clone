@@ -4,11 +4,11 @@ import React from "react";
 import { IconButton, Tooltip } from "@mui/material";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
-import { useTheme } from "@/components/theme-provider";
+import { useThemeContext } from "@/contexts";
 
 export function ThemeSwitch() {
-  const { theme, toggleTheme } = useTheme();
-  const isDarkMode = theme === "dark";
+  const { mode, toggleTheme } = useThemeContext();
+  const isDarkMode = mode === "dark";
 
   return (
     <Tooltip

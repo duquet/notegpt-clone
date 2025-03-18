@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Button, Menu, MenuItem, Typography } from "@mui/material";
 import LanguageIcon from "@mui/icons-material/Language";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import { useAppContext } from "@/contexts";
 
 const languages = [
   { code: "en", name: "English" },
@@ -15,7 +16,7 @@ const languages = [
 
 export function LanguageSwitch() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [selectedLanguage, setSelectedLanguage] = useState("en");
+  const { language, setLanguage } = useAppContext();
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -26,13 +27,12 @@ export function LanguageSwitch() {
   };
 
   const handleLanguageSelect = (code: string) => {
-    setSelectedLanguage(code);
+    setLanguage(code);
     handleClose();
-    // Here you would implement actual language switching logic
   };
 
   const currentLanguage =
-    languages.find((lang) => lang.code === selectedLanguage)?.name || "English";
+    languages.find((lang) => lang.code === language)?.name || "English";
 
   return (
     <>
@@ -50,13 +50,13 @@ export function LanguageSwitch() {
         <Typography variant="body2">{currentLanguage}</Typography>
       </Button>
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleClose}>
-        {languages.map((language) => (
+        {languages.map((lang) => (
           <MenuItem
-            key={language.code}
-            onClick={() => handleLanguageSelect(language.code)}
-            selected={selectedLanguage === language.code}
+            key={lang.code}
+            onClick={() => handleLanguageSelect(lang.code)}
+            selected={lang.code === language}
           >
-            {language.name}
+            {lang.name}
           </MenuItem>
         ))}
       </Menu>

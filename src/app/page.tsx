@@ -20,12 +20,18 @@ import SummarizeIcon from "@mui/icons-material/Summarize";
 import NoteAltIcon from "@mui/icons-material/NoteAlt";
 import { ThemeSwitch } from "@/components/theme-switch";
 import { LanguageSwitch } from "@/components/language-switch";
+import { useAppContext } from "../contexts/AppContext";
+import {
+  getYouTubeVideoDetails,
+  generateFallbackTitle,
+} from "@/utils/youtubeApi";
 
 export default function HomePage() {
   const router = useRouter();
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const { addVideoToHistory } = useAppContext();
 
   const extractYoutubeId = (url: string) => {
     const regExp =
@@ -34,7 +40,7 @@ export default function HomePage() {
     return match && match[2].length === 11 ? match[2] : null;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!youtubeUrl.trim()) {
       setError("Please enter a YouTube URL");
@@ -50,10 +56,32 @@ export default function HomePage() {
     setLoading(true);
     setError("");
 
-    // Simulate loading before redirect
-    setTimeout(() => {
-      router.push(`/workspace/create/${videoId}`);
-    }, 1000);
+    // Fetch video details from YouTube API
+    let videoTitle = "";
+    try {
+      const videoDetails = await getYouTubeVideoDetails(videoId);
+
+      if (videoDetails) {
+        videoTitle = videoDetails.title;
+      } else {
+        // Use fallback if API call failed
+        videoTitle = generateFallbackTitle(videoId);
+      }
+    } catch (error) {
+      console.error("Error fetching video details:", error);
+      videoTitle = generateFallbackTitle(videoId);
+    }
+
+    // Add to history with the fetched or generated title
+    addVideoToHistory({
+      id: videoId,
+      title: videoTitle,
+      url: youtubeUrl,
+      date: new Date().toISOString(),
+    });
+
+    // Redirect to video detail page
+    router.push(`/workspace/create/${videoId}`);
   };
 
   const handleGetStarted = () => {
