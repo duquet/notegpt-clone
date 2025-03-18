@@ -1,103 +1,288 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Box,
+  Button,
+  Container,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  TextField,
+  CircularProgress,
+  Paper,
+} from "@mui/material";
+import YouTubeIcon from "@mui/icons-material/YouTube";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import SummarizeIcon from "@mui/icons-material/Summarize";
+import NoteAltIcon from "@mui/icons-material/NoteAlt";
+import { ThemeSwitch } from "@/components/theme-switch";
+import { LanguageSwitch } from "@/components/language-switch";
+
+export default function HomePage() {
+  const router = useRouter();
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const extractYoutubeId = (url: string) => {
+    const regExp =
+      /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    return match && match[2].length === 11 ? match[2] : null;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!youtubeUrl.trim()) {
+      setError("Please enter a YouTube URL");
+      return;
+    }
+
+    const videoId = extractYoutubeId(youtubeUrl);
+    if (!videoId) {
+      setError("Invalid YouTube URL");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    // Simulate loading before redirect
+    setTimeout(() => {
+      router.push(`/workspace/create/${videoId}`);
+    }, 1000);
+  };
+
+  const handleGetStarted = () => {
+    router.push("/workspace");
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <Box>
+      {/* Header */}
+      <Box
+        component="header"
+        sx={{
+          py: 2,
+          px: 3,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          borderBottom: "1px solid",
+          borderColor: "divider",
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <AutoAwesomeIcon sx={{ color: "primary.main" }} />
+          <Typography variant="h6" component="h1" fontWeight="bold">
+            NoteGPT
+          </Typography>
+        </Box>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <ThemeSwitch />
+          <LanguageSwitch />
+          <Button variant="contained" onClick={handleGetStarted} sx={{ ml: 2 }}>
+            Get Started
+          </Button>
+        </Box>
+      </Box>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      {/* Hero Section */}
+      <Box
+        sx={{
+          backgroundImage:
+            "linear-gradient(to bottom, rgba(25, 118, 210, 0.05), rgba(25, 118, 210, 0.1))",
+          py: { xs: 8, md: 12 },
+          textAlign: "center",
+        }}
+      >
+        <Container maxWidth="md">
+          <Typography
+            variant="h2"
+            component="h2"
+            gutterBottom
+            fontWeight="bold"
+            sx={{ fontSize: { xs: "2.5rem", md: "3.75rem" } }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+            Summarize YouTube Videos Instantly
+          </Typography>
+          <Typography
+            variant="h5"
+            color="text.secondary"
+            paragraph
+            sx={{ mb: 6, maxWidth: "80%", mx: "auto" }}
+          >
+            Save time by getting AI-powered summaries, key points, and notes
+            from any YouTube video.
+          </Typography>
+
+          <Paper
+            component="form"
+            onSubmit={handleSubmit}
+            elevation={3}
+            sx={{
+              p: 2,
+              display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
+              alignItems: "center",
+              gap: 2,
+              maxWidth: "700px",
+              mx: "auto",
+            }}
+          >
+            <TextField
+              fullWidth
+              placeholder="Paste YouTube URL here (e.g., https://www.youtube.com/watch?v=lOxsW7zT1nw)"
+              value={youtubeUrl}
+              onChange={(e) => setYoutubeUrl(e.target.value)}
+              error={!!error}
+              helperText={error}
+              InputProps={{
+                startAdornment: (
+                  <YouTubeIcon sx={{ mr: 1, color: "error.main" }} />
+                ),
+              }}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <Button
+              type="submit"
+              variant="contained"
+              size="large"
+              disabled={loading}
+              sx={{
+                px: 3,
+                minWidth: { xs: "100%", sm: "auto" },
+              }}
+            >
+              {loading ? <CircularProgress size={24} /> : "Summarize"}
+            </Button>
+          </Paper>
+        </Container>
+      </Box>
+
+      {/* Features Section */}
+      <Container sx={{ py: 8 }}>
+        <Typography
+          variant="h4"
+          component="h3"
+          textAlign="center"
+          fontWeight="bold"
+          gutterBottom
+          sx={{ mb: 6 }}
+        >
+          Key Features
+        </Typography>
+
+        <Grid container spacing={4}>
+          <Grid item xs={12} md={4}>
+            <Card sx={{ height: "100%" }}>
+              <CardContent sx={{ textAlign: "center", p: 4 }}>
+                <SummarizeIcon
+                  sx={{ fontSize: 60, color: "primary.main", mb: 2 }}
+                />
+                <Typography
+                  variant="h5"
+                  component="h3"
+                  gutterBottom
+                  fontWeight="bold"
+                >
+                  Smart Summaries
+                </Typography>
+                <Typography color="text.secondary">
+                  Get concise summaries of any YouTube video, extracting the
+                  most important information without wasting your time.
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Card sx={{ height: "100%" }}>
+              <CardContent sx={{ textAlign: "center", p: 4 }}>
+                <NoteAltIcon
+                  sx={{ fontSize: 60, color: "primary.main", mb: 2 }}
+                />
+                <Typography
+                  variant="h5"
+                  component="h3"
+                  gutterBottom
+                  fontWeight="bold"
+                >
+                  Key Points
+                </Typography>
+                <Typography color="text.secondary">
+                  Identify main ideas and key points from videos to enhance your
+                  understanding and retention of the content.
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Card sx={{ height: "100%" }}>
+              <CardContent sx={{ textAlign: "center", p: 4 }}>
+                <AutoAwesomeIcon
+                  sx={{ fontSize: 60, color: "primary.main", mb: 2 }}
+                />
+                <Typography
+                  variant="h5"
+                  component="h3"
+                  gutterBottom
+                  fontWeight="bold"
+                >
+                  Save Time
+                </Typography>
+                <Typography color="text.secondary">
+                  Stop watching long videos. Get the information you need in
+                  seconds and focus on what matters most.
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      </Container>
+
+      {/* CTA Section */}
+      <Box sx={{ py: 8, bgcolor: "background.paper" }}>
+        <Container maxWidth="md" sx={{ textAlign: "center" }}>
+          <Typography
+            variant="h4"
+            component="h3"
+            gutterBottom
+            fontWeight="bold"
           >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+            Ready to get started?
+          </Typography>
+          <Typography color="text.secondary" paragraph sx={{ mb: 4 }}>
+            Join thousands of users who are saving time with NoteGPT.
+          </Typography>
+          <Button
+            variant="contained"
+            size="large"
+            onClick={handleGetStarted}
+            sx={{ px: 4, py: 1.5 }}
+          >
+            Try NoteGPT Now
+          </Button>
+        </Container>
+      </Box>
+
+      {/* Footer */}
+      <Box
+        component="footer"
+        sx={{
+          py: 4,
+          borderTop: "1px solid",
+          borderColor: "divider",
+          textAlign: "center",
+        }}
+      >
+        <Container>
+          <Typography variant="body2" color="text.secondary">
+            © {new Date().getFullYear()} NoteGPT. All rights reserved.
+          </Typography>
+        </Container>
+      </Box>
+    </Box>
   );
 }
