@@ -88,7 +88,7 @@ export default function NotesPage() {
   };
 
   const handleVideoClick = (videoId: string) => {
-    router.push(`/workspace/create/${videoId}`);
+    router.push(`/workspace/detail/${videoId}`);
   };
 
   // Get filtered and sorted notes
