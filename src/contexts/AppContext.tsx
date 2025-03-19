@@ -7,6 +7,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
+import { v4 as uuidv4 } from "uuid";
 
 // Define types for our application state
 export interface VideoSummary {
@@ -38,6 +39,24 @@ interface AppContextType {
   setLanguage: (lang: string) => void;
 }
 
+// Default development video
+const DEFAULT_VIDEO_ID = "c3wu0dUNd4c";
+const DEFAULT_VIDEO: VideoSummary = {
+  id: DEFAULT_VIDEO_ID,
+  title: "How Computers Add Numbers - Adders in Digital Electronics",
+  url: `https://www.youtube.com/watch?v=${DEFAULT_VIDEO_ID}`,
+  date: new Date().toISOString(),
+};
+
+// Default note for the video
+const DEFAULT_NOTE: UserNote = {
+  id: uuidv4(),
+  videoId: DEFAULT_VIDEO_ID,
+  content:
+    "This is a sample note for development purposes. The video explains how computers perform addition operations using digital logic circuits.",
+  date: new Date().toISOString(),
+};
+
 // Create context with default values
 const AppContext = createContext<AppContextType>({
   recentVideos: [],
@@ -54,9 +73,11 @@ export const useAppContext = () => useContext(AppContext);
 
 // Provider component
 export function AppProvider({ children }: { children: ReactNode }) {
-  // Initialize state
-  const [recentVideos, setRecentVideos] = useState<VideoSummary[]>([]);
-  const [savedNotes, setSavedNotes] = useState<UserNote[]>([]);
+  // Initialize state with default data for development
+  const [recentVideos, setRecentVideos] = useState<VideoSummary[]>([
+    DEFAULT_VIDEO,
+  ]);
+  const [savedNotes, setSavedNotes] = useState<UserNote[]>([DEFAULT_NOTE]);
   const [language, setLanguage] = useState("en");
 
   // Load data from localStorage on initial mount
@@ -66,8 +87,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const storedNotes = localStorage.getItem("noteGPT_savedNotes");
       const storedLanguage = localStorage.getItem("noteGPT_language");
 
-      if (storedVideos) setRecentVideos(JSON.parse(storedVideos));
-      if (storedNotes) setSavedNotes(JSON.parse(storedNotes));
+      // Only use stored data if it exists, otherwise keep the defaults
+      if (storedVideos) {
+        const parsedVideos = JSON.parse(storedVideos) as VideoSummary[];
+        // Ensure our default video is always included
+        if (!parsedVideos.some((v) => v.id === DEFAULT_VIDEO_ID)) {
+          parsedVideos.unshift(DEFAULT_VIDEO);
+        }
+        setRecentVideos(parsedVideos);
+      }
+
+      if (storedNotes) {
+        const parsedNotes = JSON.parse(storedNotes) as UserNote[];
+        // Ensure our default note is always included
+        if (!parsedNotes.some((n) => n.videoId === DEFAULT_VIDEO_ID)) {
+          parsedNotes.unshift(DEFAULT_NOTE);
+        }
+        setSavedNotes(parsedNotes);
+      }
+
       if (storedLanguage) setLanguage(storedLanguage);
     } catch (error) {
       console.error("Error loading data from localStorage:", error);
