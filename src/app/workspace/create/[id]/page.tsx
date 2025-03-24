@@ -52,6 +52,7 @@ export default function VideoDetailPage() {
   const [noteSaved, setNoteSaved] = useState(false);
   const [videoTitle, setVideoTitle] = useState<string>("");
   const [channelTitle, setChannelTitle] = useState<string>("");
+  const [apiError, setApiError] = useState<boolean>(false);
 
   // Find existing note for this video
   useEffect(() => {
@@ -68,6 +69,9 @@ export default function VideoDetailPage() {
   // In a real application, this would fetch the actual transcript from a backend API
   // and video details using YouTube API
   useEffect(() => {
+    // Prevent infinite API calls if we already have an API error
+    if (apiError) return;
+    
     // Simulate API call to get video transcript and details
     const fetchVideoData = async () => {
       try {
@@ -105,6 +109,7 @@ export default function VideoDetailPage() {
           }
         } catch (error) {
           console.error("Error fetching video details:", error);
+          setApiError(true); // Set error flag to prevent infinite retries
           title = generateFallbackTitle(videoId);
         }
 
@@ -123,12 +128,13 @@ export default function VideoDetailPage() {
         setLoading(false);
       } catch (error) {
         console.error("Error fetching video data:", error);
+        setApiError(true); // Set error flag to prevent infinite retries
         setLoading(false);
       }
     };
 
     fetchVideoData();
-  }, [videoId, addVideoToHistory]);
+  }, [videoId, addVideoToHistory, apiError]);
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);

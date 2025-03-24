@@ -53,35 +53,33 @@ export default function HomePage() {
       return;
     }
 
+    if (loading) {
+      return; // Prevent multiple submissions while loading
+    }
+
     setLoading(true);
     setError("");
 
-    // Fetch video details from YouTube API
-    let videoTitle = "";
     try {
       const videoDetails = await getYouTubeVideoDetails(videoId);
+      const videoTitle = videoDetails?.title || generateFallbackTitle(videoId);
 
-      if (videoDetails) {
-        videoTitle = videoDetails.title;
-      } else {
-        // Use fallback if API call failed
-        videoTitle = generateFallbackTitle(videoId);
-      }
+      // Add to history with the fetched or generated title
+      addVideoToHistory({
+        id: videoId,
+        title: videoTitle,
+        url: youtubeUrl,
+        date: new Date().toISOString(),
+      });
+
+      // Redirect to video detail page
+      router.push(`/workspace/create/${videoId}`);
     } catch (error) {
       console.error("Error fetching video details:", error);
-      videoTitle = generateFallbackTitle(videoId);
+      setError("Failed to fetch video details. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    // Add to history with the fetched or generated title
-    addVideoToHistory({
-      id: videoId,
-      title: videoTitle,
-      url: youtubeUrl,
-      date: new Date().toISOString(),
-    });
-
-    // Redirect to video detail page
-    router.push(`/workspace/create/${videoId}`);
   };
 
   const handleGetStarted = () => {

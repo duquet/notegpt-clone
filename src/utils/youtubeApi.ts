@@ -8,6 +8,9 @@ export interface VideoDetails {
   thumbnailUrl: string;
 }
 
+// Cache for API responses to prevent repeated failing calls
+const apiCache: Record<string, VideoDetails> = {};
+
 /**
  * Fetch YouTube video details by ID using our API route
  * @param videoId YouTube video ID
@@ -16,28 +19,60 @@ export interface VideoDetails {
 export async function getYouTubeVideoDetails(
   videoId: string
 ): Promise<VideoDetails | null> {
+  // Check cache first
+  if (apiCache[videoId]) {
+    return apiCache[videoId];
+  }
+
   try {
     const response = await fetch(`/api/youtube?videoId=${videoId}`);
 
     if (!response.ok) {
+      // Check for specific error codes
+      if (response.status === 429) {
+        console.warn("YouTube API quota exceeded. Using fallback title.");
+        const fallback = createFallbackDetails(videoId);
+        apiCache[videoId] = fallback;
+        return fallback;
+      }
+
       const errorData = await response.json();
       if (errorData.fallbackTitle) {
-        return {
+        const fallback = {
           title: errorData.fallbackTitle,
           channelTitle: "Unknown Channel",
           publishedAt: new Date().toISOString(),
           thumbnailUrl: "",
         };
+        apiCache[videoId] = fallback;
+        return fallback;
       }
       return null;
     }
 
     const data = await response.json();
+    // Cache successful response
+    apiCache[videoId] = data;
     return data;
   } catch (error) {
     console.error("Error fetching YouTube video details:", error);
-    return null;
+    // Cache the error response to prevent repeated failing calls
+    const fallback = createFallbackDetails(videoId);
+    apiCache[videoId] = fallback;
+    return fallback;
   }
+}
+
+/**
+ * Create a fallback video details object
+ */
+function createFallbackDetails(videoId: string): VideoDetails {
+  return {
+    title: generateFallbackTitle(videoId),
+    channelTitle: "Unknown Channel",
+    publishedAt: new Date().toISOString(),
+    thumbnailUrl: "",
+  };
 }
 
 /**
