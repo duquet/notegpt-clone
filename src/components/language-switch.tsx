@@ -5,18 +5,21 @@ import { Button, Menu, MenuItem, Typography } from "@mui/material";
 import LanguageIcon from "@mui/icons-material/Language";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import { useAppContext } from "@/contexts";
+import { useTranslation } from "@/utils";
 
+// Language configuration
 const languages = [
-  { code: "en", name: "English" },
-  { code: "es", name: "Español" },
-  { code: "fr", name: "Français" },
-  { code: "de", name: "Deutsch" },
-  { code: "zh", name: "中文" },
+  { code: "en", translationKey: "languageEnglish" },
+  { code: "es", translationKey: "languageSpanish" },
+  { code: "fr", translationKey: "languageFrench" },
+  { code: "de", translationKey: "languageGerman" },
+  { code: "zh", translationKey: "languageChinese" },
 ];
 
 export function LanguageSwitch() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const { language, setLanguage } = useAppContext();
+  const { t } = useTranslation();
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -31,8 +34,9 @@ export function LanguageSwitch() {
     handleClose();
   };
 
-  const currentLanguage =
-    languages.find((lang) => lang.code === language)?.name || "English";
+  // Get current language name using translation
+  const currentLanguageInfo = languages.find((lang) => lang.code === language) || languages[0];
+  const currentLanguageName = t(currentLanguageInfo.translationKey);
 
   return (
     <>
@@ -47,7 +51,7 @@ export function LanguageSwitch() {
           justifyContent: "space-between",
         }}
       >
-        <Typography variant="body2">{currentLanguage}</Typography>
+        <Typography variant="body2">{currentLanguageName}</Typography>
       </Button>
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleClose}>
         {languages.map((lang) => (
@@ -56,7 +60,7 @@ export function LanguageSwitch() {
             onClick={() => handleLanguageSelect(lang.code)}
             selected={lang.code === language}
           >
-            {lang.name}
+            {t(lang.translationKey)}
           </MenuItem>
         ))}
       </Menu>

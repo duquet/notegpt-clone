@@ -37,6 +37,7 @@ interface AppContextType {
   saveNote: (note: UserNote) => void;
   deleteNote: (noteId: string) => void;
   setLanguage: (lang: string) => void;
+  updateVideoTitle: (videoId: string, newTitle: string) => void;
 }
 
 // Default development video
@@ -66,6 +67,7 @@ const AppContext = createContext<AppContextType>({
   saveNote: () => {},
   deleteNote: () => {},
   setLanguage: () => {},
+  updateVideoTitle: () => {},
 });
 
 // Hook for easy context consumption
@@ -148,6 +150,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSavedNotes((prev) => prev.filter((note) => note.id !== noteId));
   };
 
+  // Function to update a video title in history
+  const updateVideoTitle = (videoId: string, newTitle: string) => {
+    setRecentVideos((prev) => 
+      prev.map((video) => 
+        video.id === videoId 
+          ? { ...video, title: newTitle } 
+          : video
+      )
+    );
+  };
+
   // Context value
   const contextValue: AppContextType = {
     recentVideos,
@@ -157,6 +170,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     saveNote,
     deleteNote,
     setLanguage,
+    updateVideoTitle,
   };
 
   return (

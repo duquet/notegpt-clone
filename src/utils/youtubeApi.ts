@@ -6,6 +6,7 @@ export interface VideoDetails {
   channelTitle: string;
   publishedAt: string;
   thumbnailUrl: string;
+  transcript?: string;
 }
 
 // Cache for API responses to prevent repeated failing calls
@@ -43,6 +44,7 @@ export async function getYouTubeVideoDetails(
           channelTitle: "Unknown Channel",
           publishedAt: new Date().toISOString(),
           thumbnailUrl: "",
+          transcript: "",
         };
         apiCache[videoId] = fallback;
         return fallback;
@@ -72,6 +74,7 @@ function createFallbackDetails(videoId: string): VideoDetails {
     channelTitle: "Unknown Channel",
     publishedAt: new Date().toISOString(),
     thumbnailUrl: "",
+    transcript: "",
   };
 }
 

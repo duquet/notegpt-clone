@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import {
   Box,
   Grid,
@@ -12,6 +13,8 @@ import {
   Paper,
   Snackbar,
   Alert,
+  CircularProgress,
+  useTheme,
 } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
@@ -26,6 +29,8 @@ import NotificationsIcon from "@mui/icons-material/Notifications";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
+import { getYouTubeVideoDetails, generateFallbackTitle } from "@/utils/youtubeApi";
+import { useAppContext } from "@/contexts";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -50,12 +55,57 @@ function TabPanel(props: TabPanelProps) {
 }
 
 export default function VideoDetailsPage() {
+  const params = useParams();
+  const videoId = params.id as string;
+  const { recentVideos, updateVideoTitle } = useAppContext();
   const [tabValue, setTabValue] = useState(0);
   const [rightTabValue, setRightTabValue] = useState(0);
-  const [videoTitle, setVideoTitle] = useState("Video Title");
+  const [videoTitle, setVideoTitle] = useState("Loading...");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [editedTitle, setEditedTitle] = useState("Video Title");
+  const [editedTitle, setEditedTitle] = useState("");
   const [showCopyAlert, setShowCopyAlert] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState(false);
+  const theme = useTheme();
+
+  // Fetch video details on component mount
+  useEffect(() => {
+    const fetchVideoDetails = async () => {
+      // First try to get from recent videos history
+      const savedVideo = recentVideos.find(video => video.id === videoId);
+      
+      if (savedVideo) {
+        setVideoTitle(savedVideo.title);
+        setEditedTitle(savedVideo.title);
+        setLoading(false);
+        return;
+      }
+      
+      // If not in history, fetch from API
+      try {
+        const videoDetails = await getYouTubeVideoDetails(videoId);
+        if (videoDetails) {
+          setVideoTitle(videoDetails.title);
+          setEditedTitle(videoDetails.title);
+        } else {
+          // Use fallback if API call failed
+          const fallbackTitle = generateFallbackTitle(videoId);
+          setVideoTitle(fallbackTitle);
+          setEditedTitle(fallbackTitle);
+        }
+      } catch (error) {
+        console.error("Error fetching video details:", error);
+        setApiError(true);
+        const fallbackTitle = generateFallbackTitle(videoId);
+        setVideoTitle(fallbackTitle);
+        setEditedTitle(fallbackTitle);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVideoDetails();
+  }, [videoId, recentVideos]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -74,8 +124,12 @@ export default function VideoDetailsPage() {
   };
 
   const handleSaveTitle = () => {
+    // Update the local state
     setVideoTitle(editedTitle);
     setIsEditingTitle(false);
+    
+    // Update the title throughout the application
+    updateVideoTitle(videoId, editedTitle);
   };
 
   const handleCancelEdit = () => {
@@ -112,10 +166,10 @@ export default function VideoDetailsPage() {
   };
 
   return (
-    <Box sx={{ p: 2, bgcolor: "#FFFFFF", fontFamily: "Inter, sans-serif" }}>
-      <Grid container spacing={2}>
+    <Box sx={{ p: 2, fontFamily: "Inter, sans-serif" }}>
+      <Grid container spacing={0}>
         {/* Left Section */}
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={5}>
           {/* Video Title and Actions */}
           <Box
             sx={{
@@ -124,7 +178,8 @@ export default function VideoDetailsPage() {
               alignItems: "center",
               mb: 1,
               width: "100%",
-              maxWidth: "360px",
+              maxWidth: "100%",
+              padding: 2,
             }}
           >
             {isEditingTitle ? (
@@ -143,21 +198,24 @@ export default function VideoDetailsPage() {
                   onKeyDown={handleKeyPress}
                   autoFocus
                   style={{
-                    border: "1px solid #E5E7EB",
+                    border: "1px solid",
+                    borderColor: theme.palette.divider,
                     borderRadius: "4px",
                     padding: "4px 8px",
                     fontSize: "1rem",
                     width: "100%",
                     outline: "none",
+                    backgroundColor: theme.palette.background.paper,
+                    color: theme.palette.text.primary,
                   }}
                 />
                 <IconButton
                   size="small"
                   onClick={handleSaveTitle}
                   sx={{
-                    color: "#2563EB",
+                    color: theme.palette.primary.main,
                     "&:hover": {
-                      color: "#1D4ED8",
+                      color: theme.palette.primary.dark,
                     },
                   }}
                 >
@@ -167,9 +225,9 @@ export default function VideoDetailsPage() {
                   size="small"
                   onClick={handleCancelEdit}
                   sx={{
-                    color: "#6B7280",
+                    color: theme.palette.text.secondary,
                     "&:hover": {
-                      color: "#374151",
+                      color: theme.palette.text.primary,
                     },
                   }}
                 >
@@ -181,7 +239,7 @@ export default function VideoDetailsPage() {
                 <Typography
                   variant="h6"
                   sx={{
-                    color: "#111827",
+                    color: theme.palette.text.primary,
                     fontWeight: "bold",
                     fontSize: "1rem",
                   }}
@@ -192,9 +250,9 @@ export default function VideoDetailsPage() {
                   <IconButton
                     size="small"
                     sx={{
-                      color: "#6B7280",
+                      color: theme.palette.text.secondary,
                       "&:hover": {
-                        color: "#374151",
+                        color: theme.palette.text.primary,
                       },
                     }}
                   >
@@ -204,9 +262,9 @@ export default function VideoDetailsPage() {
                     size="small"
                     onClick={handleEditTitle}
                     sx={{
-                      color: "#6B7280",
+                      color: theme.palette.text.secondary,
                       "&:hover": {
-                        color: "#374151",
+                        color: theme.palette.text.primary,
                       },
                     }}
                   >
@@ -222,146 +280,61 @@ export default function VideoDetailsPage() {
             sx={{
               position: "relative",
               width: "100%",
-              maxWidth: "360px",
-              height: "202px",
+              maxWidth: "100%",
+              height: "352px",
               borderRadius: 2,
               overflow: "hidden",
               boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
             }}
           >
-            {/* Video Thumbnail */}
-            <Box
-              component="img"
-              src="/placeholder-video-thumbnail.jpg"
-              alt="Video thumbnail"
-              sx={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-              }}
-            />
-
-            {/* Play Button Overlay */}
-            <Box
-              sx={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                bgcolor: "rgba(0, 0, 0, 0.5)",
-                borderRadius: "50%",
-                p: 1,
-                cursor: "pointer",
-                transition: "background-color 0.2s",
-                "&:hover": {
-                  bgcolor: "rgba(0, 0, 0, 0.7)",
-                },
-              }}
-            >
-              <PlayArrowIcon sx={{ color: "#FFFFFF", fontSize: 20 }} />
-            </Box>
+            {loading ? (
+              <Box sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                width: '100%',
+                height: '100%',
+                bgcolor: 'black',
+              }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <iframe
+                width="100%"
+                height="100%"
+                src={`https://www.youtube.com/embed/${videoId}?modestbranding=1&rel=0&showinfo=0`}
+                title="YouTube video player"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              ></iframe>
+            )}
           </Box>
 
           {/* Video Controls */}
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              mt: 0.5,
-              gap: 1,
-              py: 0.5,
-            }}
-          >
-            <IconButton
-              size="small"
-              sx={{
-                color: "#6B7280",
-                "&:hover": {
-                  color: "#374151",
-                },
-              }}
-            >
-              <PlayArrowIcon fontSize="small" />
-            </IconButton>
-            <IconButton
-              size="small"
-              sx={{
-                color: "#6B7280",
-                "&:hover": {
-                  color: "#374151",
-                },
-              }}
-            >
-              <VolumeUpIcon fontSize="small" />
-            </IconButton>
-            <IconButton
-              size="small"
-              sx={{
-                color: "#6B7280",
-                "&:hover": {
-                  color: "#374151",
-                },
-              }}
-            >
-              <FullscreenIcon fontSize="small" />
-            </IconButton>
-            <Box sx={{ flexGrow: 1 }} />
-            <IconButton
-              size="small"
-              onClick={handleCopyTranscript}
-              sx={{
-                color: "#6B7280",
-                "&:hover": {
-                  color: "#374151",
-                },
-              }}
-            >
-              <ContentCopyIcon fontSize="small" />
-            </IconButton>
-            <IconButton
-              size="small"
-              sx={{
-                color: "#6B7280",
-                "&:hover": {
-                  color: "#374151",
-                },
-              }}
-            >
-              <DownloadIcon fontSize="small" />
-            </IconButton>
-            <IconButton
-              size="small"
-              sx={{
-                color: "#6B7280",
-                "&:hover": {
-                  color: "#374151",
-                },
-              }}
-            >
-              <ShareIcon fontSize="small" />
-            </IconButton>
-          </Box>
+
 
           {/* Transcript Tabs */}
           <Box
             sx={{
               borderBottom: 1,
-              borderColor: "#E5E7EB",
+              borderColor: theme.palette.divider,
               mt: 0.5,
               py: 0.5,
+              maxWidth: "100%",
+              width: "100%",
             }}
           >
             <Tabs value={tabValue} onChange={handleTabChange}>
               <Tab
                 label="Transcript"
                 sx={{
-                  color: tabValue === 0 ? "#2563EB" : "#374151",
+                  color: tabValue === 0 ? theme.palette.primary.main : theme.palette.text.primary,
                   textTransform: "none",
                   fontSize: "0.875rem",
                   "&.Mui-selected": {
-                    color: "#2563EB",
-                    borderBottom: "2px solid #2563EB",
+                    color: theme.palette.primary.main,
+                    borderBottom: `2px solid ${theme.palette.primary.main}`,
                     fontWeight: 500,
                   },
                 }}
@@ -369,12 +342,12 @@ export default function VideoDetailsPage() {
               <Tab
                 label="Discover"
                 sx={{
-                  color: tabValue === 1 ? "#2563EB" : "#374151",
+                  color: tabValue === 1 ? theme.palette.primary.main : theme.palette.text.primary,
                   textTransform: "none",
                   fontSize: "0.875rem",
                   "&.Mui-selected": {
-                    color: "#2563EB",
-                    borderBottom: "2px solid #2563EB",
+                    color: theme.palette.primary.main,
+                    borderBottom: `2px solid ${theme.palette.primary.main}`,
                     fontWeight: 500,
                   },
                 }}
@@ -390,7 +363,7 @@ export default function VideoDetailsPage() {
                 flexDirection: "column",
                 gap: 1.5,
                 width: "100%",
-                maxWidth: "360px",
+                maxWidth: "100%",
                 height: "calc(100vh - 450px)",
                 overflowY: "auto",
                 pr: 0.5,
@@ -398,15 +371,15 @@ export default function VideoDetailsPage() {
                   width: "6px",
                 },
                 "&::-webkit-scrollbar-track": {
-                  background: "#F3F4F6",
+                  background: theme.palette.mode === 'light' ? "#F3F4F6" : "#2a2a3a",
                   borderRadius: "3px",
                   margin: "2px",
                 },
                 "&::-webkit-scrollbar-thumb": {
-                  background: "#D1D5DB",
+                  background: theme.palette.mode === 'light' ? "#D1D5DB" : "#4a4a5a",
                   borderRadius: "3px",
                   "&:hover": {
-                    background: "#9CA3AF",
+                    background: theme.palette.mode === 'light' ? "#9CA3AF" : "#5a5a6a",
                   },
                 },
               }}
@@ -432,7 +405,7 @@ export default function VideoDetailsPage() {
                   >
                     <Typography
                       sx={{
-                        color: "#2563EB",
+                        color: theme.palette.text.primary,
                         fontWeight: "bold",
                         fontSize: "0.875rem",
                       }}
@@ -445,10 +418,10 @@ export default function VideoDetailsPage() {
                     </Typography>
                     <KeyboardArrowDownIcon
                       sx={{
-                        color: "#6B7280",
+                        color: theme.palette.text.secondary,
                         fontSize: "1rem",
                         "&:hover": {
-                          color: "#374151",
+                          color: theme.palette.text.primary,
                         },
                         cursor: "pointer",
                       }}
@@ -457,7 +430,7 @@ export default function VideoDetailsPage() {
                   <Typography
                     className="transcript-text"
                     sx={{
-                      color: "#111827",
+                      color: theme.palette.text.primary,
                       fontSize: "1rem",
                       lineHeight: 1.5,
                       width: "100%",
@@ -474,14 +447,17 @@ export default function VideoDetailsPage() {
         </Grid>
 
         {/* Right Section */}
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={7}>
           <Box
-            sx={{
-              bgcolor: "#F9FAFB",
-              p: 3,
-              borderRadius: 2,
-              boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-            }}
+          sx={{
+            p: 2,
+          }}
+            // sx={{
+            //   bgcolor: "#F9FAFB",
+            //   p: 3,
+            //   borderRadius: 2,
+            //   boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+            // }}
           >
             {/* Right Section Tabs */}
             <Box
@@ -501,7 +477,7 @@ export default function VideoDetailsPage() {
                 <Tab
                   label="AI Notes"
                   sx={{
-                    bgcolor: rightTabValue === 0 ? "#2563EB" : "#F3F4F6",
+                    bgcolor: rightTabValue === 0 ? theme.palette.primary.main : theme.palette.background.paper,
                     color: "#FF0000 !important",
                     borderRadius: 0.5,
                     py: 0.5,
@@ -525,8 +501,8 @@ export default function VideoDetailsPage() {
                 <Tab
                   label="AI Chat"
                   sx={{
-                    bgcolor: rightTabValue === 1 ? "#2563EB" : "#F3F4F6",
-                    color: rightTabValue === 1 ? "#FFFFFF" : "#374151",
+                    bgcolor: rightTabValue === 1 ? theme.palette.primary.main : theme.palette.background.paper,
+                    color: rightTabValue === 1 ? "#FFFFFF" : theme.palette.text.primary,
                     borderRadius: 0.5,
                     py: 0.125,
                     px: 1,
@@ -538,7 +514,7 @@ export default function VideoDetailsPage() {
                         ? "0 1px 2px rgba(0,0,0,0.1)"
                         : "none",
                     minWidth: "40px",
-                    border: "1px solid #E5E7EB",
+                    border: `1px solid ${theme.palette.divider}`,
                     height: "16px",
                   }}
                 />
@@ -549,13 +525,13 @@ export default function VideoDetailsPage() {
                 <IconButton
                   size="small"
                   sx={{
-                    bgcolor: "#F3F4F6",
-                    color: "#6B7280",
+                    bgcolor: theme.palette.background.paper,
+                    color: theme.palette.text.secondary,
                     width: "20px",
                     height: "20px",
                     "&:hover": {
-                      bgcolor: "#E5E7EB",
-                      color: "#374151",
+                      bgcolor: theme.palette.divider,
+                      color: theme.palette.text.primary,
                     },
                   }}
                 >
@@ -587,13 +563,13 @@ export default function VideoDetailsPage() {
                 <IconButton
                   size="small"
                   sx={{
-                    bgcolor: "#F3F4F6",
-                    color: "#6B7280",
+                    bgcolor: theme.palette.background.paper,
+                    color: theme.palette.text.secondary,
                     width: "20px",
                     height: "20px",
                     "&:hover": {
-                      bgcolor: "#E5E7EB",
-                      color: "#374151",
+                      bgcolor: theme.palette.divider,
+                      color: theme.palette.text.primary,
                     },
                   }}
                 >
@@ -606,10 +582,10 @@ export default function VideoDetailsPage() {
             <Paper
               elevation={0}
               sx={{
-                border: "1px solid #E5E7EB",
+                border: `1px solid ${theme.palette.divider}`,
                 borderRadius: 2,
                 p: 2,
-                bgcolor: "#FFFFFF",
+                bgcolor: theme.palette.background.paper,
                 width: "100%",
                 height: "calc(100vh - 250px)",
                 overflowY: "auto",
@@ -618,14 +594,14 @@ export default function VideoDetailsPage() {
                   width: "6px",
                 },
                 "&::-webkit-scrollbar-track": {
-                  background: "#F3F4F6",
+                  background: theme.palette.mode === 'light' ? "#F3F4F6" : "#2a2a3a",
                   borderRadius: "3px",
                 },
                 "&::-webkit-scrollbar-thumb": {
-                  background: "#D1D5DB",
+                  background: theme.palette.mode === 'light' ? "#D1D5DB" : "#4a4a5a",
                   borderRadius: "3px",
                   "&:hover": {
-                    background: "#9CA3AF",
+                    background: theme.palette.mode === 'light' ? "#9CA3AF" : "#5a5a6a",
                   },
                 },
               }}
@@ -633,7 +609,7 @@ export default function VideoDetailsPage() {
               <Typography
                 variant="h5"
                 sx={{
-                  color: "#111827",
+                  color: theme.palette.text.primary,
                   fontWeight: "bold",
                   mb: 2,
                   fontSize: "1.25rem",
@@ -644,7 +620,7 @@ export default function VideoDetailsPage() {
               </Typography>
               <Typography
                 sx={{
-                  color: "#111827",
+                  color: theme.palette.text.primary,
                   lineHeight: 1.5,
                   mb: 3,
                   fontSize: "1rem",
@@ -658,7 +634,7 @@ export default function VideoDetailsPage() {
               <Typography
                 variant="h6"
                 sx={{
-                  color: "#111827",
+                  color: theme.palette.text.primary,
                   fontWeight: "bold",
                   mb: 2,
                   fontSize: "1.125rem",
@@ -669,7 +645,7 @@ export default function VideoDetailsPage() {
               </Typography>
               <Typography
                 sx={{
-                  color: "#111827",
+                  color: theme.palette.text.primary,
                   lineHeight: 1.5,
                   fontSize: "1rem",
                   width: "100%",

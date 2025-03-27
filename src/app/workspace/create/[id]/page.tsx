@@ -48,7 +48,7 @@ export default function VideoDetailPage() {
   const [activeTab, setActiveTab] = useState(0);
   const [transcript, setTranscript] = useState<string>("");
   const [noteContent, setNoteContent] = useState("");
-  const { addVideoToHistory, saveNote, savedNotes } = useAppContext();
+  const { addVideoToHistory, saveNote, savedNotes, recentVideos } = useAppContext();
   const [noteSaved, setNoteSaved] = useState(false);
   const [videoTitle, setVideoTitle] = useState<string>("");
   const [channelTitle, setChannelTitle] = useState<string>("");
@@ -66,43 +66,35 @@ export default function VideoDetailPage() {
     }
   }, [videoId, savedNotes]);
 
-  // In a real application, this would fetch the actual transcript from a backend API
-  // and video details using YouTube API
+  // Fetch video data and transcript
   useEffect(() => {
     // Prevent infinite API calls if we already have an API error
     if (apiError) return;
     
-    // Simulate API call to get video transcript and details
     const fetchVideoData = async () => {
       try {
-        // Simulate network delay for transcript
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        // Mock transcript data (in a real app, you would fetch this from a backend)
-        const mockTranscript = `
-          Hello everyone! In this video, we're going to discuss some exciting topics.
-          
-          First, let's talk about AI and its impact on modern society. Artificial intelligence has been transforming various industries, from healthcare to transportation.
-          
-          Next, we'll explore the ethical considerations surrounding new technologies. As we develop more advanced tools, we need to consider their implications.
-          
-          Finally, we'll look at some real-world applications and how they're changing the way we live and work.
-          
-          Thanks for watching! Don't forget to like and subscribe for more content.
-        `;
-
-        setTranscript(mockTranscript);
-
-        // Fetch actual video title from YouTube API
+        // Fetch actual video title and transcript from API
         let title = "";
         let channel = "Unknown Channel";
+        let videoTranscript = "";
+
+        // First check if we already have the video in recent videos
+        const savedVideo = recentVideos.find(video => video.id === videoId);
+        if (savedVideo) {
+          title = savedVideo.title;
+          // Don't override the saved title with API data
+          setVideoTitle(title);
+          setChannelTitle(channel);
+        }
 
         try {
           const videoDetails = await getYouTubeVideoDetails(videoId);
 
           if (videoDetails) {
-            title = videoDetails.title;
+            title = videoDetails.title || title;
             channel = videoDetails.channelTitle;
+            // Use transcript from API response if available
+            videoTranscript = videoDetails.transcript || "";
           } else {
             // Use fallback if API call failed
             title = generateFallbackTitle(videoId);
@@ -113,18 +105,22 @@ export default function VideoDetailPage() {
           title = generateFallbackTitle(videoId);
         }
 
+        // Update state with fetched data
         setVideoTitle(title);
         setChannelTitle(channel);
+        setTranscript(videoTranscript || "No transcript available for this video.");
 
-        // Add to history with real or fallback title
-        const videoSummary: VideoSummary = {
-          id: videoId,
-          title: title,
-          url: `https://www.youtube.com/watch?v=${videoId}`,
-          date: new Date().toISOString(),
-        };
-
-        addVideoToHistory(videoSummary);
+        // Only add to history if it wasn't found earlier
+        if (!savedVideo) {
+          const videoSummary: VideoSummary = {
+            id: videoId,
+            title: title,
+            url: `https://www.youtube.com/watch?v=${videoId}`,
+            date: new Date().toISOString(),
+          };
+          addVideoToHistory(videoSummary);
+        }
+        
         setLoading(false);
       } catch (error) {
         console.error("Error fetching video data:", error);
@@ -134,7 +130,7 @@ export default function VideoDetailPage() {
     };
 
     fetchVideoData();
-  }, [videoId, addVideoToHistory, apiError]);
+  }, [videoId, addVideoToHistory, apiError, recentVideos]);
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);

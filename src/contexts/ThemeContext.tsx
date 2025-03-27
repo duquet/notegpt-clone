@@ -40,8 +40,12 @@ const lightTheme = createTheme({
       main: blue[700],
     },
     background: {
-      default: "#f7f9fc",
+      default: "#ffffff",
       paper: "#ffffff",
+    },
+    text: {
+      primary: "#000000",
+      secondary: grey[700],
     },
   },
 });
@@ -53,12 +57,12 @@ const darkTheme = createTheme({
       main: blue[500],
     },
     background: {
-      default: "#121212",
-      paper: "#1e1e1e",
+      default: "#1e1e2d",
+      paper: "#1e1e2d",
     },
     text: {
-      primary: grey[300],
-      secondary: grey[500],
+      primary: "#ffffff",
+      secondary: grey[300],
     },
   },
 });

@@ -12,6 +12,43 @@ export async function GET(request: Request) {
     );
   }
 
+  // Try the Python API first
+  try {
+    // Create standardized YouTube URL from video ID
+    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    
+    const pythonApiResponse = await fetch("http://127.0.0.1:5000/video", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ url: videoUrl }),
+      // Short timeout to ensure we fall back quickly if Python API is unavailable
+      // signal: AbortSignal.timeout(500000000)
+    });
+
+    if (pythonApiResponse.ok) {
+      const data = await pythonApiResponse.json();
+      
+      // Transform the response to match our expected format
+      return NextResponse.json({
+        title: data.title || `YouTube Video (${videoId})`,
+        channelTitle: data.uploaded_by || "Unknown Channel",
+        publishedAt: data.uploaded_at || new Date().toISOString(),
+        thumbnailUrl: "", // Python API doesn't provide thumbnail
+        transcript: data.transcript || "", // Include transcript from Python API
+      });
+    }
+    
+    // If Python API didn't respond properly, log it and continue to fallback
+    console.log("Python API failed, falling back to YouTube Data API");
+  } catch (error) {
+    // Log error and continue to fallback
+    console.error("Error accessing Python API:", error);
+    console.log("Falling back to YouTube Data API");
+  }
+
+  // Fallback to YouTube Data API
   const API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
   
   if (!API_KEY) {
@@ -50,6 +87,7 @@ export async function GET(request: Request) {
       channelTitle: snippet?.channelTitle || "Unknown Channel",
       publishedAt: snippet?.publishedAt || new Date().toISOString(),
       thumbnailUrl: snippet?.thumbnails?.standard?.url || "",
+      transcript: "", // YouTube Data API doesn't provide transcript
     });
   } catch (error: any) {
     console.error("Error fetching YouTube video details:", error);
