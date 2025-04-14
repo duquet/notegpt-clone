@@ -24,6 +24,8 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ### Run Flask Server
 
+> If the `env` folder is already present in `api/` directory, do delete it first
+
 To run the flask server, first activate the virtual environment and install dependencies
 
 ```
