@@ -20,6 +20,9 @@ import {
   Tooltip,
   Menu,
   MenuItem,
+  Divider,
+  ListSubheader,
+  TextField,
 } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
@@ -36,9 +39,18 @@ import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
 import LocationSearchingIcon from '@mui/icons-material/LocationSearching';
 import LanguageIcon from '@mui/icons-material/Language';
+import NotesIcon from '@mui/icons-material/Notes';
+import ChatIcon from '@mui/icons-material/Chat';
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import MessageIcon from '@mui/icons-material/Message';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { getYouTubeVideoDetails, generateFallbackTitle } from "@/utils/youtubeApi";
 import { useAppContext } from "@/contexts";
 import { translateTranscriptSegments } from "@/utils/translation";
+import { summarizeTranscript } from "@/utils/openAiService";
+import ReactMarkdown from 'react-markdown';
 
 // Add YouTube API types
 declare global {
@@ -140,6 +152,25 @@ export default function VideoDetailsPage() {
   const [translatedSegments, setTranslatedSegments] = useState<TranscriptSegment[]>([]);
   const [isTranslatingDisplay, setIsTranslatingDisplay] = useState(false);
   const [displayTranslationError, setDisplayTranslationError] = useState<string | null>(null);
+  const [summaryContent, setSummaryContent] = useState<string>('');
+  const [keyInsightsContent, setKeyInsightsContent] = useState<string>('');
+  const [highlightsContent, setHighlightsContent] = useState<string>('');
+  const [conclusionContent, setConclusionContent] = useState<string>('');
+  const [markdownContent, setMarkdownContent] = useState<string>('');
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [summaryMenuAnchorEl, setSummaryMenuAnchorEl] = useState<null | HTMLElement>(null);
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [customPromptTitle, setCustomPromptTitle] = useState('');
+  const [showCustomPromptInput, setShowCustomPromptInput] = useState(false);
+  const [summaryCards, setSummaryCards] = useState<Array<{
+    id: string;
+    title: string;
+    content: string;
+    type: string;
+  }>>([]);
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  const [editPrompt, setEditPrompt] = useState('');
+  const [editTitle, setEditTitle] = useState('');
   
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
@@ -705,6 +736,261 @@ export default function VideoDetailsPage() {
     }
   };
 
+  // Add a useEffect to automatically generate summary when transcript is loaded
+  useEffect(() => {
+    // Only try to summarize once we have transcript segments and they're not loading
+    if (translatedSegments.length > 0 && !transcriptLoading && !isSummarizing && !markdownContent) {
+      // Automatically generate the summary
+      handleSummarize();
+    }
+  }, [translatedSegments, transcriptLoading, isSummarizing, markdownContent]);
+
+  // Handle summary dropdown menu
+  const handleSummaryMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setSummaryMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleSummaryMenuClose = () => {
+    setSummaryMenuAnchorEl(null);
+  };
+
+  // Handle custom prompt
+  const handleCustomPrompt = () => {
+    setShowCustomPromptInput(true);
+    setCustomPrompt('');
+    setCustomPromptTitle('');
+    handleSummaryMenuClose();
+  };
+
+  const handleSubmitCustomPrompt = () => {
+    if (customPrompt.trim()) {
+      // Call handleSummarize with the custom prompt
+      handleSummarize(customPrompt.trim(), customPromptTitle.trim() || "Custom Summary");
+    }
+    setShowCustomPromptInput(false);
+  };
+
+  const handleCancelCustomPrompt = () => {
+    setShowCustomPromptInput(false);
+    setCustomPrompt('');
+    setCustomPromptTitle('');
+  };
+
+  // Function to handle summarize button click
+  const handleSummarize = async (prompt?: string, title?: string, templateType: string = 'default') => {
+    if (isSummarizing) return;
+    
+    try {
+      setIsSummarizing(true);
+      
+      // Get full transcript text
+      const fullTranscript = translatedSegments.map(segment => segment.text).join(' ');
+      
+      // Call OpenAI to generate summary
+      const result = await summarizeTranscript(fullTranscript, prompt);
+      
+      if (templateType === 'default') {
+        // For default summary, update the main summary content
+        setMarkdownContent(result);
+        
+        // Parse the result to separate sections
+        const sections = parseSummaryResponse(result);
+        
+        // Update state with the content sections for default summary
+        setSummaryContent(sections.summary);
+        setKeyInsightsContent(sections.keyInsights);
+        setHighlightsContent(sections.highlights);
+        setConclusionContent(sections.conclusion);
+        
+        // Also add to summaryCards if not already there
+        if (!summaryCards.some(card => card.type === 'default')) {
+          const cardId = `summary-${Date.now()}`;
+          setSummaryCards(prevCards => [{
+            id: cardId,
+            title: 'Summary',
+            content: result,
+            type: 'default'
+          }, ...prevCards]);
+        }
+      } else {
+        // For non-default templates, add a new card without touching the default summary
+        const cardId = `summary-${Date.now()}`;
+        setSummaryCards(prevCards => [...prevCards, {
+          id: cardId,
+          title: title || 'Custom Summary',
+          content: result,
+          type: templateType
+        }]);
+      }
+    } catch (error) {
+      console.error('Error generating summary:', error);
+      setSummaryContent('An error occurred while generating the summary. Please try again.');
+      setMarkdownContent('**Summary**\n\nAn error occurred while generating the summary. Please try again.');
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+  
+  // Helper function to parse the OpenAI response
+  const parseSummaryResponse = (response: string) => {
+    // Default structure in case parsing fails
+    const defaultReturn = {
+      summary: '',
+      keyInsights: '',
+      highlights: '',
+      conclusion: ''
+    };
+    
+    try {
+      // Try to find all sections with the new order (highlights before key insights)
+      const summaryMatch = response.match(/\*\*Summary\*\*\s*([\s\S]*?)(?=\*\*Highlights\*\*|\*\*Key Insights\*\*|\*\*Conclusion\*\*|$)/i);
+      const highlightsMatch = response.match(/\*\*Highlights\*\*\s*([\s\S]*?)(?=\*\*Key Insights\*\*|\*\*Conclusion\*\*|$)/i);
+      const keyInsightsMatch = response.match(/\*\*Key Insights\*\*\s*([\s\S]*?)(?=\*\*Conclusion\*\*|$)/i);
+      const conclusionMatch = response.match(/\*\*Conclusion\*\*\s*([\s\S]*?)$/i);
+      
+      if (summaryMatch && summaryMatch[1]) {
+        defaultReturn.summary = summaryMatch[1].trim();
+      }
+      
+      if (highlightsMatch && highlightsMatch[1]) {
+        defaultReturn.highlights = highlightsMatch[1].trim();
+      }
+      
+      if (keyInsightsMatch && keyInsightsMatch[1]) {
+        defaultReturn.keyInsights = keyInsightsMatch[1].trim();
+      }
+      
+      if (conclusionMatch && conclusionMatch[1]) {
+        defaultReturn.conclusion = conclusionMatch[1].trim();
+      }
+    } catch (err) {
+      console.error('Error parsing summary response:', err);
+    }
+    
+    return defaultReturn;
+  };
+
+  // Handle selection of a summary template
+  const handleSummaryTemplate = (template: string) => {
+    // Create a prompt based on the selected template
+    let prompt = "";
+    let title = "";
+    
+    switch(template) {
+      case "chapter":
+        title = "Chapter Summary";
+        prompt = "Create a chapter-by-chapter summary with a table of contents structure. Break down the content into logical sections, and provide detailed summaries for each chapter.";
+        break;
+      case "core-points":
+        prompt = "Summarize the core points, key conclusions, and important details of this content. Focus on extracting the most critical information and insights.";
+        break;
+      case "notes":
+        prompt = "Generate structured, comprehensive notes in an organized format that would help someone review and retain this knowledge easily. Include bullet points, hierarchical structure, and highlight key concepts.";
+        break;
+      case "industry":
+        prompt = "Analyze this content from a business perspective. Identify industry trends, market insights, competitive analysis, and key components relevant to business strategy.";
+        break;
+      case "financial":
+        prompt = "Extract key financial insights and metrics from this content. Highlight important financial data, performance indicators, and strategic financial implications.";
+        break;
+      case "annual-report":
+        prompt = "Summarize this as if it were an annual report. Include background information, key decisions, important data points, achievements, challenges, and future outlook.";
+        break;
+      case "legal":
+        prompt = "Summarize this content as if it were a legal document. Highlight key legal terms, obligations, rights, potential liabilities, and important clauses in a structured format.";
+        break;
+      case "contract":
+        prompt = "Review this content as if it were a contract. Identify potential liabilities, obligations, risks, terms, conditions, and important details that would be relevant in a contract review.";
+        break;
+      case "meeting":
+        prompt = "Summarize this content as if it were meeting minutes. Capture key discussion points, decisions made, action items, and essential information for those who couldn't attend.";
+        break;
+      case "essay":
+        prompt = "Generate an academic summary of this content with properly structured sections that would be useful for research or essay writing. Include key concepts, evidence, and citations where relevant.";
+        break;
+      case "blog":
+        prompt = "Convert this content into an SEO-friendly blog post format with an engaging introduction, well-structured body with subheadings, and a conclusion. Use a conversational yet informative tone.";
+        break;
+      case "flashcards":
+        prompt = "Generate a set of flashcards from this content with clear questions on one side and concise answers on the other. Focus on key concepts, definitions, and important facts.";
+        break;
+      case "podcast":
+        prompt = "Create a conversational podcast script based on this content. Include an engaging introduction, main discussion points, transitions between topics, and a conclusion that would work well in audio format.";
+        break;
+      default:
+        title = "Summary";
+        prompt = "Summarize this content in a clear, concise way highlighting the main points and key insights.";
+    }
+    
+    // Call handleSummarize with the generated prompt and title
+    handleSummarize(prompt, title, template);
+    handleSummaryMenuClose();
+  };
+
+  // Function to delete a summary card
+  const handleDeleteSummaryCard = (cardId: string) => {
+    const cardToDelete = summaryCards.find(card => card.id === cardId);
+    
+    // Handle deleting the default summary card
+    if (cardToDelete && cardToDelete.type === 'default') {
+      // Clear the main content
+      setMarkdownContent('');
+      setSummaryContent('');
+      setKeyInsightsContent('');
+      setHighlightsContent('');
+      setConclusionContent('');
+    }
+    
+    // Remove card from state
+    setSummaryCards(prevCards => prevCards.filter(card => card.id !== cardId));
+  };
+
+  // Function to edit a summary card
+  const handleEditSummaryCard = (cardId: string) => {
+    const card = summaryCards.find(c => c.id === cardId);
+    if (card) {
+      setEditingCardId(cardId);
+      setEditPrompt('');
+      setEditTitle(card.title);
+    }
+  };
+  
+  const handleSaveCardEdit = async () => {
+    if (!editingCardId) return;
+    
+    try {
+      setIsSummarizing(true);
+      const fullTranscript = translatedSegments.map(segment => segment.text).join(' ');
+      
+      // Only regenerate if there's a custom prompt
+      if (editPrompt) {
+        const result = await summarizeTranscript(fullTranscript, editPrompt);
+        
+        setSummaryCards(prevCards => prevCards.map(card => 
+          card.id === editingCardId 
+            ? { ...card, content: result, title: editTitle || card.title }
+            : card
+        ));
+      } else {
+        // Just update the title
+        setSummaryCards(prevCards => prevCards.map(card => 
+          card.id === editingCardId 
+            ? { ...card, title: editTitle || card.title }
+            : card
+        ));
+      }
+    } catch (error) {
+      console.error('Error updating summary card:', error);
+    } finally {
+      setEditingCardId(null);
+      setIsSummarizing(false);
+    }
+  };
+  
+  const handleCancelCardEdit = () => {
+    setEditingCardId(null);
+  };
+
   return (
     <Box sx={{ p: 2, fontFamily: "Inter, sans-serif" }}>
       <Grid container spacing={0}>
@@ -1158,114 +1444,396 @@ export default function VideoDetailsPage() {
           sx={{
             p: 2,
           }}
-            // sx={{
-            //   bgcolor: "#F9FAFB",
-            //   p: 3,
-            //   borderRadius: 2,
-            //   boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-            // }}
           >
             {/* Right Section Tabs */}
             <Box
               sx={{
                 display: "flex",
                 alignItems: "center",
-                gap: 2,
-                mb: 3,
+                justifyContent: "space-between",
                 width: "100%",
+                mb: 3,
               }}
             >
-              <Tabs
-                value={rightTabValue}
-                onChange={handleRightTabChange}
-                sx={{ flexGrow: 1 }}
-              >
-                <Tab
-                  label="AI Notes"
-                  sx={{
-                    bgcolor: rightTabValue === 0 ? theme.palette.primary.main : theme.palette.background.paper,
-                    color: "#FF0000 !important",
-                    borderRadius: 0.5,
-                    py: 0.5,
-                    px: 1.5,
-                    textTransform: "none",
-                    fontSize: "0.625rem",
-                    fontWeight: 500,
-                    boxShadow:
-                      rightTabValue === 0
-                        ? "0 1px 2px rgba(0,0,0,0.1)"
-                        : "none",
-                    minWidth: "60px",
-                    "&.Mui-selected": {
-                      color: "#FF0000",
-                    },
-                    "&:hover": {
-                      color: "#FF0000",
-                    },
-                  }}
-                />
-                <Tab
-                  label="AI Chat"
-                  sx={{
-                    bgcolor: rightTabValue === 1 ? theme.palette.primary.main : theme.palette.background.paper,
-                    color: rightTabValue === 1 ? "#FFFFFF" : theme.palette.text.primary,
-                    borderRadius: 0.5,
-                    py: 0.125,
-                    px: 1,
-                    textTransform: "none",
-                    fontSize: "0.5rem",
-                    fontWeight: 500,
-                    boxShadow:
-                      rightTabValue === 1
-                        ? "0 1px 2px rgba(0,0,0,0.1)"
-                        : "none",
-                    minWidth: "40px",
-                    border: `1px solid ${theme.palette.divider}`,
-                    height: "16px",
-                  }}
-                />
-              </Tabs>
+              {/* Left side content - can be empty or add tabs here in the future */}
+              <Box>
+              </Box>
 
-              {/* Action Buttons */}
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
-                <IconButton
-                  size="small"
-                  sx={{
-                    bgcolor: theme.palette.background.paper,
-                    color: theme.palette.text.secondary,
-                    width: "20px",
-                    height: "20px",
-                    "&:hover": {
-                      bgcolor: theme.palette.divider,
-                      color: theme.palette.text.primary,
-                    },
-                  }}
-                >
-                  <PercentIcon sx={{ fontSize: "0.75rem" }} />
-                </IconButton>
+              {/* Action Buttons - moved to the right */}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
+                <Box sx={{ position: 'relative' }}>
                 <Button
                   variant="contained"
                   size="small"
+                    onClick={() => handleSummarize()}
+                    disabled={isSummarizing || transcriptLoading || transcriptSegments.length === 0}
                   sx={{
-                    bgcolor: "#7C3AED",
+                      height: '32px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      background: 'linear-gradient(90deg, #2e83fb 0%, #9867ff 100%)',
+                      borderRadius: '8px', // Using 8px as approximate for var(--base-card-border-radius)
+                      border: 'none',
                     color: "#FFFFFF",
-                    borderRadius: 0.5,
-                    px: 0.5,
-                    py: 0.125,
-                    height: "20px",
-                    fontSize: "0.625rem",
+                      px: 2,
+                      fontSize: "0.75rem",
                     fontWeight: 500,
                     boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
                     "&:hover": {
-                      bgcolor: "#6D28D9",
                       boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
                     },
-                    flexGrow: 1,
-                    maxWidth: "80px",
-                  }}
-                >
-                  Summarize
+                      textTransform: 'none',
+                    }}
+                    endIcon={
+                      <Box 
+                        component="span" 
+                        onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
+                          e.stopPropagation();
+                          handleSummaryMenuOpen(e);
+                        }}
+                        sx={{ 
+                          display: 'flex',
+                          alignItems: 'center',
+                          pl: 0.5,
+                          cursor: 'pointer',
+                          '&:hover': {
+                            opacity: 0.8
+                          }
+                        }}
+                      >
+                        <ArrowDropDownIcon fontSize="small" />
+                      </Box>
+                    }
+                  >
+                    {isSummarizing ? (
+                      <CircularProgress size={16} sx={{ color: '#FFFFFF', mr: 1 }} />
+                    ) : (
+                      <AutoFixHighIcon sx={{ fontSize: '0.9rem', mr: 0.5 }} />
+                    )}
+                    {isSummarizing ? 'Summarizing...' : 'Summarize'}
                 </Button>
+                  
+                  {/* Summary Options Menu */}
+                  <Menu
+                    anchorEl={summaryMenuAnchorEl}
+                    open={Boolean(summaryMenuAnchorEl)}
+                    onClose={handleSummaryMenuClose}
+                    anchorOrigin={{
+                      vertical: 'bottom',
+                      horizontal: 'right',
+                    }}
+                    transformOrigin={{
+                      vertical: 'top',
+                      horizontal: 'right',
+                    }}
+                    PaperProps={{
+                      elevation: 3,
+                      sx: {
+                        mt: 0.5,
+                        minWidth: 280,
+                        maxHeight: 400,
+                        borderRadius: 1,
+                        overflow: 'auto',
+                        padding: '4px 0',
+                        boxShadow: '0px 5px 15px rgba(0,0,0,0.1)',
+                        '&:before': {
+                          content: '""',
+                          display: 'block',
+                          position: 'absolute',
+                          top: -5,
+                          right: 10,
+                          width: 10,
+                          height: 10,
+                          bgcolor: 'background.paper',
+                          transform: 'rotate(45deg)',
+                          zIndex: 0,
+                        },
+                      },
+                    }}
+                  >
+                    <MenuItem 
+                      onClick={handleCustomPrompt}
+                      sx={{
+                        py: 1.2,
+                        pl: 2,
+                        borderRadius: '4px',
+                        mx: 0.5,
+                        '&:hover': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        }
+                      }}
+                    >
+                      <AddIcon fontSize="small" sx={{ mr: 1.5, color: theme.palette.primary.main }} />
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        Add Custom Prompt
+                      </Typography>
+                    </MenuItem>
+
+                    <Divider sx={{ my: 1 }} />
+                    
+                    {/* General Summaries */}
+                    <ListSubheader 
+                      sx={{ 
+                        bgcolor: 'transparent', 
+                        color: theme.palette.text.secondary,
+                        fontWeight: 600,
+                        fontSize: '0.75rem',
+                        lineHeight: '1.5',
+                        px: 2
+                      }}
+                    >
+                      General Summaries
+                    </ListSubheader>
+                    
+                    <MenuItem 
+                      onClick={() => handleSummaryTemplate("chapter")}
+                      sx={{ py: 0.8, px: 2, fontSize: '0.85rem' }}
+                    >
+                      Chapter Summary
+                    </MenuItem>
+                    
+                    <MenuItem 
+                      onClick={() => handleSummaryTemplate("core-points")}
+                      sx={{ py: 0.8, px: 2, fontSize: '0.85rem' }}
+                    >
+                      Core Points Summary
+                    </MenuItem>
+                    
+                    <MenuItem 
+                      onClick={() => handleSummaryTemplate("notes")}
+                      sx={{ py: 0.8, px: 2, fontSize: '0.85rem' }}
+                    >
+                      AI Note
+                    </MenuItem>
+                    
+                    <Divider sx={{ my: 1 }} />
+                    
+                    {/* Business & Finance */}
+                    <ListSubheader 
+                      sx={{ 
+                        bgcolor: 'transparent', 
+                        color: theme.palette.text.secondary,
+                        fontWeight: 600,
+                        fontSize: '0.75rem',
+                        lineHeight: '1.5',
+                        px: 2
+                      }}
+                    >
+                      Business & Finance
+                    </ListSubheader>
+                    
+                    <MenuItem 
+                      onClick={() => handleSummaryTemplate("industry")}
+                      sx={{ py: 0.8, px: 2, fontSize: '0.85rem' }}
+                    >
+                      Industry & Market Reports Summary
+                    </MenuItem>
+                    
+                    <MenuItem 
+                      onClick={() => handleSummaryTemplate("financial")}
+                      sx={{ py: 0.8, px: 2, fontSize: '0.85rem' }}
+                    >
+                      Financial Statements Assistant
+                    </MenuItem>
+                    
+                    <MenuItem 
+                      onClick={() => handleSummaryTemplate("annual-report")}
+                      sx={{ py: 0.8, px: 2, fontSize: '0.85rem' }}
+                    >
+                      Annual Report Summarizer
+                    </MenuItem>
+                    
+                    <Divider sx={{ my: 1 }} />
+                    
+                    {/* Legal & Documentation */}
+                    <ListSubheader 
+                      sx={{ 
+                        bgcolor: 'transparent', 
+                        color: theme.palette.text.secondary,
+                        fontWeight: 600,
+                        fontSize: '0.75rem',
+                        lineHeight: '1.5',
+                        px: 2
+                      }}
+                    >
+                      Legal & Documentation
+                    </ListSubheader>
+                    
+                    <MenuItem 
+                      onClick={() => handleSummaryTemplate("legal")}
+                      sx={{ py: 0.8, px: 2, fontSize: '0.85rem' }}
+                    >
+                      Legal Documents Summarizer
+                    </MenuItem>
+                    
+                    <MenuItem 
+                      onClick={() => handleSummaryTemplate("contract")}
+                      sx={{ py: 0.8, px: 2, fontSize: '0.85rem' }}
+                    >
+                      Contract Review Assistant
+                    </MenuItem>
+                    
+                    <MenuItem 
+                      onClick={() => handleSummaryTemplate("meeting")}
+                      sx={{ py: 0.8, px: 2, fontSize: '0.85rem' }}
+                    >
+                      Meeting Minutes Summarizer
+                    </MenuItem>
+                    
+                    <Divider sx={{ my: 1 }} />
+                    
+                    {/* Content Creation */}
+                    <ListSubheader 
+                      sx={{ 
+                        bgcolor: 'transparent', 
+                        color: theme.palette.text.secondary,
+                        fontWeight: 600,
+                        fontSize: '0.75rem',
+                        lineHeight: '1.5',
+                        px: 2
+                      }}
+                    >
+                      Content Creation
+                    </ListSubheader>
+                    
+                    <MenuItem 
+                      onClick={() => handleSummaryTemplate("essay")}
+                      sx={{ py: 0.8, px: 2, fontSize: '0.85rem' }}
+                    >
+                      Essay Resource Organizer
+                    </MenuItem>
+                    
+                    <MenuItem 
+                      onClick={() => handleSummaryTemplate("blog")}
+                      sx={{ py: 0.8, px: 2, fontSize: '0.85rem' }}
+                    >
+                      Blog Post Converter
+                    </MenuItem>
+                    
+                    <MenuItem 
+                      onClick={() => handleSummaryTemplate("flashcards")}
+                      sx={{ py: 0.8, px: 2, fontSize: '0.85rem' }}
+                    >
+                      AI Flashcard Generator
+                    </MenuItem>
+                    
+                    <MenuItem 
+                      onClick={() => handleSummaryTemplate("podcast")}
+                      sx={{ py: 0.8, px: 2, fontSize: '0.85rem' }}
+                    >
+                      Podcast Script Generator
+                    </MenuItem>
+                  </Menu>
+                  
+                  {/* Custom Prompt Dialog */}
+                  {showCustomPromptInput && (
+                    <Paper
+                      elevation={4}
+                      sx={{
+                        position: 'absolute',
+                        top: '40px',
+                        right: 0,
+                        zIndex: 1200,
+                        width: '320px',
+                        p: 2.5,
+                        borderRadius: 2,
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                      }}
+                    >
+                      <Typography 
+                        variant="subtitle1" 
+                        sx={{ 
+                          fontWeight: 600, 
+                          mb: 1.5,
+                          display: 'flex',
+                          alignItems: 'center',
+                          color: theme.palette.primary.main
+                        }}
+                      >
+                        <MessageIcon sx={{ mr: 1, fontSize: '1.1rem' }} />
+                        Create Custom Prompt
+                      </Typography>
+
+                      {/* Title Input */}
+                      <Typography variant="caption" sx={{ fontWeight: 500, mb: 0.5, display: 'block' }}>
+                        Title
+                      </Typography>
+                      <input
+                        type="text"
+                        value={customPromptTitle}
+                        onChange={(e) => setCustomPromptTitle(e.target.value)}
+                        placeholder="Enter a title for your summary..."
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          marginBottom: '12px',
+                          borderRadius: '6px',
+                          border: `1px solid ${theme.palette.divider}`,
+                          fontFamily: 'inherit',
+                          fontSize: '0.9rem',
+                          outline: 'none',
+                          transition: 'border-color 0.2s',
+                          backgroundColor: theme.palette.background.paper,
+                          color: theme.palette.text.primary,
+                        }}
+                      />
+
+                      {/* Prompt Input */}
+                      <Typography variant="caption" sx={{ fontWeight: 500, mb: 0.5, display: 'block' }}>
+                        Prompt
+                      </Typography>
+                      <textarea
+                        value={customPrompt}
+                        onChange={(e) => setCustomPrompt(e.target.value)}
+                        placeholder="Example: Explain this video as if I'm 10 years old, or focus on the technical aspects only..."
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          marginBottom: '16px',
+                          borderRadius: '8px',
+                          border: `1px solid ${theme.palette.divider}`,
+                          minHeight: '100px',
+                          resize: 'vertical',
+                          fontFamily: 'inherit',
+                          fontSize: '0.9rem',
+                          outline: 'none',
+                          transition: 'border-color 0.2s',
+                          backgroundColor: theme.palette.background.paper,
+                          color: theme.palette.text.primary,
+                        }}
+                      />
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5 }}>
+                        <Button 
+                          size="small" 
+                          onClick={handleCancelCustomPrompt}
+                          sx={{ 
+                            textTransform: 'none',
+                            px: 2.5,
+                            py: 0.8,
+                            color: theme.palette.text.secondary
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button 
+                          size="small" 
+                          variant="contained" 
+                          onClick={handleSubmitCustomPrompt}
+                          sx={{ 
+                            textTransform: 'none',
+                            px: 2.5,
+                            py: 0.8,
+                            background: 'linear-gradient(90deg, #2e83fb 0%, #9867ff 100%)',
+                            boxShadow: '0 2px 8px rgba(46, 131, 251, 0.25)',
+                          }}
+                        >
+                          Submit
+                        </Button>
+                      </Box>
+                    </Paper>
+                  )}
+                </Box>
+                <Tooltip title="Add Notes">
                 <IconButton
                   size="small"
                   sx={{
@@ -1279,89 +1847,287 @@ export default function VideoDetailsPage() {
                     },
                   }}
                 >
-                  <AddIcon sx={{ fontSize: "0.75rem" }} />
+                    <AddIcon sx={{marginRight: "1.25rem"}} />
                 </IconButton>
+                </Tooltip>
               </Box>
             </Box>
 
             {/* Summary and Highlights */}
-            <Paper
-              elevation={0}
-              sx={{
-                border: `1px solid ${theme.palette.divider}`,
-                borderRadius: 2,
-                p: 2,
-                bgcolor: theme.palette.background.paper,
-                width: "100%",
-                height: "calc(100vh - 250px)",
-                overflowY: "auto",
-                pr: 1,
-                "&::-webkit-scrollbar": {
-                  width: "6px",
-                },
-                "&::-webkit-scrollbar-track": {
-                  background: theme.palette.mode === 'light' ? "#F3F4F6" : "#2a2a3a",
-                  borderRadius: "3px",
-                },
-                "&::-webkit-scrollbar-thumb": {
-                  background: theme.palette.mode === 'light' ? "#D1D5DB" : "#4a4a5a",
-                  borderRadius: "3px",
-                  "&:hover": {
-                    background: theme.palette.mode === 'light' ? "#9CA3AF" : "#5a5a6a",
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {/* Default Summary Card - always show this one first */}
+              <Paper
+                elevation={0}
+                sx={{
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: 2,
+                  p: 2,
+                  bgcolor: theme.palette.background.paper,
+                  width: "100%",
+                  overflowY: "auto",
+                  pr: 1,
+                  "&::-webkit-scrollbar": {
+                    width: "6px",
                   },
-                },
-              }}
-            >
-              <Typography
-                variant="h5"
-                sx={{
-                  color: theme.palette.text.primary,
-                  fontWeight: "bold",
-                  mb: 2,
-                  fontSize: "1.25rem",
-                  width: "100%",
+                  "&::-webkit-scrollbar-track": {
+                    background: theme.palette.mode === 'light' ? "#F3F4F6" : "#2a2a3a",
+                    borderRadius: "3px",
+                  },
+                  "&::-webkit-scrollbar-thumb": {
+                    background: theme.palette.mode === 'light' ? "#D1D5DB" : "#4a4a5a",
+                    borderRadius: "3px",
+                    "&:hover": {
+                      background: theme.palette.mode === 'light' ? "#9CA3AF" : "#5a5a6a",
+                    },
+                  },
                 }}
               >
-                Summary
-              </Typography>
-              <Typography
-                sx={{
-                  color: theme.palette.text.primary,
-                  lineHeight: 1.5,
-                  mb: 3,
-                  fontSize: "1rem",
-                  width: "100%",
-                }}
-              >
-                This is a placeholder for the summary content. The summary will
-                be generated based on the video content and will provide a
-                concise overview of the main points discussed.
-              </Typography>
-              <Typography
-                variant="h6"
-                sx={{
-                  color: theme.palette.text.primary,
-                  fontWeight: "bold",
-                  mb: 2,
-                  fontSize: "1.125rem",
-                  width: "100%",
-                }}
-              >
-                Highlights
-              </Typography>
-              <Typography
-                sx={{
-                  color: theme.palette.text.primary,
-                  lineHeight: 1.5,
-                  fontSize: "1rem",
-                  width: "100%",
-                }}
-              >
-                This section will contain the key highlights and important
-                points from the video, formatted in a clear and organized
-                manner.
-              </Typography>
-            </Paper>
+                {isSummarizing && !summaryCards.some(card => card.type !== 'default') ? (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                    <CircularProgress size={40} sx={{ mb: 2 }} />
+                    <Typography variant="body1">Generating summary...</Typography>
+                  </Box>
+                ) : markdownContent ? (
+                  <Box sx={{ 
+                    padding: '0.1rem 0.5rem 0.1rem 0.5rem', // Less padding on top, keep sides and bottom
+                    position: 'relative',
+                    '& p': { margin: '0.75em 0' },
+                    '& ul': { paddingLeft: '1.5em', margin: '0.75em 0' },
+                    '& li': { margin: '0.5em 0', paddingLeft: '0.5em' },
+                    '& strong': { 
+                      fontWeight: 'bold',
+                      color: theme.palette.primary.main,
+                      fontSize: '1em',
+                      display: 'block',
+                      marginTop: '1em',
+                      marginBottom: '0.75em',
+                      borderBottom: `1px solid ${theme.palette.divider}`,
+                      paddingBottom: '0.25em'
+                    },
+                    '& h1, & h2, & h3, & h4, & h5, & h6': { 
+                      margin: '1.25em 0 0.75em 0', 
+                      fontWeight: 'bold',
+                      color: theme.palette.primary.main
+                    },
+                  }}>
+                    <ReactMarkdown>{markdownContent}</ReactMarkdown>
+                    
+                    {/* Edit and Delete buttons */}
+                    <Box 
+                      sx={{
+                        position: 'absolute',
+                        bottom: 10,
+                        right: 10,
+                        display: 'flex',
+                        gap: 1,
+                        mt: 3 // Add top margin
+                      }}
+                    >
+                      <IconButton 
+                        size="small"
+                        sx={{ 
+                          bgcolor: theme.palette.background.paper,
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                          color: theme.palette.primary.main,
+                          '&:hover': { bgcolor: theme.palette.primary.light, color: '#fff' }
+                        }}
+                        onClick={() => {
+                          const defaultCard = summaryCards.find(card => card.type === 'default');
+                          if (defaultCard) {
+                            handleEditSummaryCard(defaultCard.id);
+                          }
+                        }}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton 
+                        size="small"
+                        sx={{ 
+                          bgcolor: theme.palette.background.paper,
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                          color: theme.palette.error.main,
+                          '&:hover': { bgcolor: theme.palette.error.light, color: '#fff' }
+                        }}
+                        onClick={() => {
+                          const defaultCard = summaryCards.find(card => card.type === 'default');
+                          if (defaultCard) {
+                            handleDeleteSummaryCard(defaultCard.id);
+                          }
+                        }}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  </Box>
+                ) : (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                    <Typography variant="body1" sx={{ textAlign: 'center', color: theme.palette.text.secondary }}>
+                      Summarizing...
+                    </Typography>
+                  </Box>
+                )}
+              </Paper>
+              
+              {/* Additional Summary Cards - only show non-default templates */}
+              {summaryCards.filter(card => card.type !== 'default').map(card => (
+                <Paper
+                  key={card.id}
+                  elevation={0}
+                  sx={{
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    p: 2,
+                    bgcolor: theme.palette.background.paper,
+                    width: "100%",
+                    overflowY: "auto",
+                    pr: 1,
+                    "&::-webkit-scrollbar": {
+                      width: "6px",
+                    },
+                    "&::-webkit-scrollbar-track": {
+                      background: theme.palette.mode === 'light' ? "#F3F4F6" : "#2a2a3a",
+                      borderRadius: "3px",
+                    },
+                    "&::-webkit-scrollbar-thumb": {
+                      background: theme.palette.mode === 'light' ? "#D1D5DB" : "#4a4a5a",
+                      borderRadius: "3px",
+                      "&:hover": {
+                        background: theme.palette.mode === 'light' ? "#9CA3AF" : "#5a5a6a",
+                      },
+                    },
+                  }}
+                >
+                  {editingCardId === card.id ? (
+                    <Box sx={{ p: 2 }}>
+                      <TextField
+                        fullWidth
+                        label="Title"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        variant="outlined"
+                        margin="normal"
+                        size="small"
+                      />
+                      <TextField
+                        fullWidth
+                        label="Custom Prompt (optional)"
+                        value={editPrompt}
+                        onChange={(e) => setEditPrompt(e.target.value)}
+                        variant="outlined"
+                        margin="normal"
+                        size="small"
+                        multiline
+                        rows={3}
+                      />
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2, gap: 1 }}>
+                        <Button onClick={handleCancelCardEdit} size="small">Cancel</Button>
+                        <Button 
+                          onClick={handleSaveCardEdit} 
+                          variant="contained" 
+                          size="small"
+                          sx={{ 
+                            background: 'linear-gradient(90deg, #2e83fb 0%, #9867ff 100%)',
+                          }}
+                        >
+                          Save
+                        </Button>
+                      </Box>
+                    </Box>
+                  ) : (
+                    <Box sx={{ 
+                      padding: '0.1rem 0.5rem 0.1rem 0.5rem',
+                      position: 'relative',
+                      '& p': { margin: '0.75em 0' },
+                      '& ul': { paddingLeft: '1.5em', margin: '0.75em 0' },
+                      '& li': { margin: '0.5em 0', paddingLeft: '0.5em' },
+                      '& strong': { 
+                        fontWeight: 'bold',
+                        color: theme.palette.primary.main,
+                        fontSize: '1em',
+                        display: 'block',
+                        marginTop: '1em',
+                        marginBottom: '0.75em',
+                        borderBottom: `1px solid ${theme.palette.divider}`,
+                        paddingBottom: '0.25em'
+                      },
+                      '& h1, & h2, & h3, & h4, & h5, & h6': { 
+                        margin: '1.25em 0 0.75em 0', 
+                        fontWeight: 'bold',
+                        color: theme.palette.primary.main
+                      },
+                    }}>
+                      <Typography 
+                        variant="subtitle1" 
+                        sx={{ 
+                          fontWeight: 'bold', 
+                          mb: 2,
+                          color: theme.palette.primary.main 
+                        }}
+                      >
+                        {card.title}
+                      </Typography>
+                      <ReactMarkdown>{card.content}</ReactMarkdown>
+                      
+                      {/* Edit and Delete buttons */}
+                      <Box 
+                        sx={{
+                          position: 'absolute',
+                          bottom: 10,
+                          right: 10,
+                          display: 'flex',
+                          gap: 1,
+                          mt: 3 // Add top margin
+                        }}
+                      >
+                        <IconButton 
+                          size="small"
+                          sx={{ 
+                            bgcolor: theme.palette.background.paper,
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                            color: theme.palette.primary.main,
+                            '&:hover': { bgcolor: theme.palette.primary.light, color: '#fff' }
+                          }}
+                          onClick={() => handleEditSummaryCard(card.id)}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton 
+                          size="small"
+                          sx={{ 
+                            bgcolor: theme.palette.background.paper,
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                            color: theme.palette.error.main,
+                            '&:hover': { bgcolor: theme.palette.error.light, color: '#fff' }
+                          }}
+                          onClick={() => handleDeleteSummaryCard(card.id)}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    </Box>
+                  )}
+                </Paper>
+              ))}
+              
+              {/* Show loading indicator for additional summaries */}
+              {isSummarizing && summaryCards.some(card => card.type !== 'default') && (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    p: 2,
+                    bgcolor: theme.palette.background.paper,
+                    width: "100%"
+                  }}
+                >
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 4 }}>
+                    <CircularProgress size={40} sx={{ mb: 2 }} />
+                    <Typography variant="body1">Generating additional summary...</Typography>
+                  </Box>
+                </Paper>
+              )}
+            </Box>
           </Box>
         </Grid>
       </Grid>
@@ -1395,33 +2161,4 @@ export default function VideoDetailsPage() {
       </Snackbar>
     </Box>
   );
-}
-
-export async function translateTranscriptSegments(
-  segments: TranscriptSegment[],
-  targetLanguage: Language
-): Promise<TranscriptSegment[]> {
-  try {
-    const separator = '|||SEGMENT_SEPARATOR|||';
-    const fullText = segments.map(segment => segment.text).join(separator);
-    
-    console.log("Translating text:", fullText); // Log the text being translated
-
-    const translatedText = await translateText(fullText, targetLanguage);
-    const translatedSegments = translatedText.split(separator);
-    
-    return segments.map((segment, index) => {
-      const translatedText = translatedSegments[index]?.trim();
-      if (!translatedText) {
-        console.warn(`Translation missing for segment: ${segment.text}`); // Log missing translations
-      }
-      return {
-        ...segment,
-        text: translatedText || segment.text // Fallback to original text if translation is missing
-      };
-    });
-  } catch (error) {
-    console.error('Error translating transcript:', error);
-    throw error;
-  }
 }
