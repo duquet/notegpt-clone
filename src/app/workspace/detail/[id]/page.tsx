@@ -46,11 +46,14 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import MessageIcon from '@mui/icons-material/Message';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
+import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import { getYouTubeVideoDetails, generateFallbackTitle } from "@/utils/youtubeApi";
 import { useAppContext } from "@/contexts";
 import { translateTranscriptSegments } from "@/utils/translation";
 import { summarizeTranscript } from "@/utils/openAiService";
 import ReactMarkdown from 'react-markdown';
+import SchoolIcon from '@mui/icons-material/School';
 
 // Add YouTube API types
 declare global {
@@ -124,6 +127,311 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
+// FlashCard component for interactive quiz cards
+interface FlashCardProps {
+  question: string;
+  answer: string;
+  difficulty: string;
+  category: string;
+}
+
+const FlashCard: React.FC<FlashCardProps> = ({ question, answer, difficulty, category }) => {
+  const [isFlipped, setIsFlipped] = useState(false);
+  
+  const handleCardClick = () => {
+    setIsFlipped(!isFlipped);
+  };
+  
+  // Get appropriate color for difficulty level
+  const getDifficultyColor = () => {
+    switch(difficulty.toLowerCase()) {
+      case 'easy': return '#4caf50'; // green
+      case 'medium': return '#ff9800'; // orange
+      case 'hard': return '#f44336'; // red
+      default: return '#2196f3'; // blue for unknown
+    }
+  };
+  
+  return (
+    <Box 
+      onClick={handleCardClick}
+      sx={{
+        width: '100%',
+        height: '280px',
+        perspective: '1000px',
+        cursor: 'pointer',
+      }}
+    >
+      <Box
+        sx={{
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          transformStyle: 'preserve-3d',
+          transition: 'transform 0.6s',
+          transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0)',
+          boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+          borderRadius: 2,
+        }}
+      >
+        {/* Front of card (Question) */}
+        <Box
+          sx={{
+            position: 'absolute',
+            width: '100%',
+            height: '100%',
+            backfaceVisibility: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 3,
+            bgcolor: 'background.paper',
+            borderRadius: 2,
+            border: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          <Box sx={{ position: 'absolute', top: 12, left: 12 }}>
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                bgcolor: getDifficultyColor(),
+                color: 'white',
+                px: 1,
+                py: 0.5,
+                borderRadius: 1,
+                fontWeight: 'bold',
+                fontSize: '0.7rem',
+              }}
+            >
+              {difficulty}
+            </Typography>
+          </Box>
+          
+          <Box sx={{ position: 'absolute', top: 12, right: 12 }}>
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                bgcolor: 'primary.main',
+                color: 'white',
+                px: 1,
+                py: 0.5,
+                borderRadius: 1,
+                fontSize: '0.7rem',
+              }}
+            >
+              {category}
+            </Typography>
+          </Box>
+          
+          <Typography 
+            variant="h6" 
+            align="center" 
+            sx={{ 
+              fontWeight: 'bold',
+              mb: 2,
+              mt: 1
+            }}
+          >
+            Question
+          </Typography>
+          
+          <Typography variant="body1" align="center">
+            {question}
+          </Typography>
+          
+          <Typography 
+            variant="caption" 
+            sx={{ 
+              position: 'absolute',
+              bottom: 12,
+              color: 'text.secondary',
+              fontStyle: 'italic'
+            }}
+          >
+            Click to reveal answer
+          </Typography>
+        </Box>
+        
+        {/* Back of card (Answer) */}
+        <Box
+          sx={{
+            position: 'absolute',
+            width: '100%',
+            height: '100%',
+            backfaceVisibility: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 3,
+            bgcolor: 'background.paper',
+            borderRadius: 2,
+            border: '1px solid',
+            borderColor: 'divider',
+            transform: 'rotateY(180deg)',
+          }}
+        >
+          <Typography 
+            variant="h6" 
+            align="center" 
+            sx={{ 
+              fontWeight: 'bold',
+              mb: 2,
+              color: 'primary.main'
+            }}
+          >
+            Answer
+          </Typography>
+          
+          <Typography variant="body1" align="center">
+            {answer}
+          </Typography>
+          
+          <Typography 
+            variant="caption" 
+            sx={{ 
+              position: 'absolute',
+              bottom: 12,
+              color: 'text.secondary',
+              fontStyle: 'italic'
+            }}
+          >
+            Click to see question
+          </Typography>
+        </Box>
+      </Box>
+    </Box>
+  );
+};
+
+// Interactive Flashcard Carousel component
+interface FlashcardCarouselProps {
+  cards: FlashCardProps[];
+  title: string;
+}
+
+const FlashcardCarousel: React.FC<FlashcardCarouselProps> = ({ cards, title }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const theme = useTheme();
+  
+  const handleNext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentIndex((prevIndex) => (prevIndex + 1) % cards.length);
+  };
+  
+  const handlePrevious = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentIndex((prevIndex) => (prevIndex - 1 + cards.length) % cards.length);
+  };
+  
+  // Validate cards array
+  const validCards = Array.isArray(cards) && cards.length > 0 && 
+    cards.every(card => card && typeof card === 'object' && 
+      typeof card.question === 'string' && 
+      typeof card.answer === 'string');
+  
+  if (!validCards) {
+    console.error("Invalid flashcards data:", cards);
+    return (
+      <Box sx={{ textAlign: 'center', p: 3 }}>
+        <Typography variant="h6" color="error" gutterBottom>
+          Error loading flash cards
+        </Typography>
+        <Typography variant="body2">
+          Please try generating the quiz again. If the problem persists, try a different video.
+        </Typography>
+        <Box sx={{ mt: 2 }}>
+          <CircularProgress size={20} />
+        </Box>
+      </Box>
+    );
+  }
+  
+  if (cards.length === 0) {
+    return (
+      <Box sx={{ textAlign: 'center', p: 3 }}>
+        <Typography variant="h6">No flash cards available</Typography>
+      </Box>
+    );
+  }
+  
+  return (
+    <Box sx={{ position: 'relative', width: '100%', pt: 2 }}>
+      <Typography 
+        variant="h6" 
+        sx={{ 
+          textAlign: 'center', 
+          fontWeight: 'bold',
+          mb: 3,
+          color: 'primary.main' 
+        }}
+      >
+        {title}
+      </Typography>
+      
+      <Typography 
+        variant="body2" 
+        sx={{ 
+          textAlign: 'center', 
+          mb: 3,
+          color: 'text.secondary' 
+        }}
+      >
+        Card {currentIndex + 1} of {cards.length}
+      </Typography>
+      
+      <Box sx={{ px: 6 }}>
+        <FlashCard {...cards[currentIndex]} />
+      </Box>
+      
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        mt: 3,
+        gap: 2 // Add gap between buttons
+      }}>
+        <IconButton 
+          onClick={handlePrevious}
+          disabled={cards.length <= 1}
+          sx={{ 
+            bgcolor: 'background.paper', 
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            color: theme.palette.primary.main,
+            '&:hover': {
+              bgcolor: theme.palette.primary.light,
+              color: '#fff'
+            },
+            width: 40,
+            height: 40
+          }}
+        >
+          <ArrowBackIosNewIcon fontSize="small" />
+        </IconButton>
+        
+        <IconButton 
+          onClick={handleNext}
+          disabled={cards.length <= 1}
+          sx={{ 
+            bgcolor: 'background.paper', 
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            color: theme.palette.primary.main,
+            '&:hover': {
+              bgcolor: theme.palette.primary.light,
+              color: '#fff'
+            },
+            width: 40,
+            height: 40
+          }}
+        >
+          <ArrowForwardIosIcon fontSize="small" />
+        </IconButton>
+      </Box>
+    </Box>
+  );
+};
+
 export default function VideoDetailsPage() {
   const params = useParams();
   const videoId = params.id as string;
@@ -167,6 +475,12 @@ export default function VideoDetailsPage() {
     title: string;
     content: string;
     type: string;
+    flashcards?: Array<{
+      question: string;
+      answer: string;
+      difficulty: string;
+      category: string;
+    }>;
   }>>([]);
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [editPrompt, setEditPrompt] = useState('');
@@ -787,14 +1101,30 @@ export default function VideoDetailsPage() {
       const fullTranscript = translatedSegments.map(segment => segment.text).join(' ');
       
       // Call OpenAI to generate summary
-      const result = await summarizeTranscript(fullTranscript, prompt);
+      let result;
+      
+      // Special handling for quiz-flashcards to ensure we get proper JSON
+      if (templateType === 'quiz-flashcards') {
+        // Use a specific structure that encourages JSON generation
+        const quizPrompt = `Create an interactive quiz with flashcards based on this content. Generate 10-15 question-answer pairs that test understanding of the key concepts, facts, and insights. Return ONLY a valid JSON array with objects having this structure: { "question": "...", "answer": "...", "difficulty": "(easy|medium|hard)", "category": "..." }. Do NOT include markdown formatting or code blocks, just the raw JSON array: 
+
+${fullTranscript}`;
+        
+        result = await summarizeTranscript(fullTranscript, {
+          templateType: templateType,
+          customPrompt: quizPrompt
+        });
+      } else {
+        // Regular approach for other templates
+        result = await summarizeTranscript(fullTranscript, prompt);
+      }
       
       if (templateType === 'default') {
         // For default summary, update the main summary content
         setMarkdownContent(result);
         
         // Parse the result to separate sections
-        const sections = parseSummaryResponse(result);
+        const sections = parseSummaryResponse(result, templateType);
         
         // Update state with the content sections for default summary
         setSummaryContent(sections.summary);
@@ -815,12 +1145,28 @@ export default function VideoDetailsPage() {
       } else {
         // For non-default templates, add a new card without touching the default summary
         const cardId = `summary-${Date.now()}`;
-        setSummaryCards(prevCards => [...prevCards, {
-          id: cardId,
-          title: title || 'Custom Summary',
-          content: result,
-          type: templateType
-        }]);
+        
+        // If it's a quiz-flashcards type, parse the JSON
+        if (templateType === 'quiz-flashcards') {
+          // Parse the JSON from the result
+          const flashcards = parseSummaryResponse(result, templateType);
+          console.log("Parsed flashcards:", flashcards);
+          setSummaryCards(prevCards => [...prevCards, {
+            id: cardId,
+            title: templateType === 'quiz-flashcards' ? 'AI Flash Cards' : (title || 'Interactive Quiz Cards'),
+            content: result,
+            type: templateType,
+            flashcards: flashcards
+          }]);
+        } else {
+          // Regular non-default template
+          setSummaryCards(prevCards => [...prevCards, {
+            id: cardId,
+            title: title || 'Custom Summary',
+            content: result,
+            type: templateType
+          }]);
+        }
       }
     } catch (error) {
       console.error('Error generating summary:', error);
@@ -832,8 +1178,63 @@ export default function VideoDetailsPage() {
   };
   
   // Helper function to parse the OpenAI response
-  const parseSummaryResponse = (response: string) => {
-    // Default structure in case parsing fails
+  const parseSummaryResponse = (response: string, templateType?: string) => {
+    // If it's a quiz flashcard type, try to parse the JSON
+    if (templateType === 'quiz-flashcards') {
+      try {
+        console.log("Parsing quiz flashcards from response:", response);
+        
+        // Extract JSON from the markdown code block if it exists
+        const jsonMatch = response.match(/```json\n([\s\S]*?)\n```/);
+        if (jsonMatch && jsonMatch[1]) {
+          console.log("Found JSON code block:", jsonMatch[1]);
+          try {
+            const parsed = JSON.parse(jsonMatch[1]);
+            console.log("Successfully parsed JSON from code block:", parsed);
+            return parsed;
+          } catch (parseErr) {
+            console.error("Error parsing JSON from code block:", parseErr);
+          }
+        }
+        
+        // If no code block or parsing failed, try finding JSON array in the text
+        const jsonArrayMatch = response.match(/\[\s*\{[\s\S]*\}\s*\]/);
+        if (jsonArrayMatch) {
+          console.log("Found JSON array in text:", jsonArrayMatch[0]);
+          try {
+            const parsed = JSON.parse(jsonArrayMatch[0]);
+            console.log("Successfully parsed JSON array from text:", parsed);
+            return parsed;
+          } catch (parseErr) {
+            console.error("Error parsing JSON array from text:", parseErr);
+          }
+        }
+        
+        // If all parsing attempts fail, create a sample flashcard so we don't get the "No flash cards available" message
+        console.log("All parsing attempts failed, creating sample flashcards");
+        return [
+          {
+            question: "What was discussed in this content?",
+            answer: "The AI couldn't parse the content properly. Please try generating the quiz again.",
+            difficulty: "easy",
+            category: "General"
+          }
+        ];
+      } catch (err) {
+        console.error('Error parsing quiz flashcards JSON:', err);
+        // Return a sample flashcard so something appears
+        return [
+          {
+            question: "What was discussed in this content?",
+            answer: "The AI couldn't parse the content properly. Please try generating the quiz again.",
+            difficulty: "easy",
+            category: "General"
+          }
+        ];
+      }
+    }
+
+    // Default structure for regular summaries
     const defaultReturn = {
       summary: '',
       keyInsights: '',
@@ -882,40 +1283,56 @@ export default function VideoDetailsPage() {
         prompt = "Create a chapter-by-chapter summary with a table of contents structure. Break down the content into logical sections, and provide detailed summaries for each chapter.";
         break;
       case "core-points":
+        title = "Core Points Summary";
         prompt = "Summarize the core points, key conclusions, and important details of this content. Focus on extracting the most critical information and insights.";
         break;
       case "notes":
+        title = "AI Note";
         prompt = "Generate structured, comprehensive notes in an organized format that would help someone review and retain this knowledge easily. Include bullet points, hierarchical structure, and highlight key concepts.";
         break;
       case "industry":
+        title = "Industry & Market Analysis";
         prompt = "Analyze this content from a business perspective. Identify industry trends, market insights, competitive analysis, and key components relevant to business strategy.";
         break;
       case "financial":
+        title = "Financial Summary";
         prompt = "Extract key financial insights and metrics from this content. Highlight important financial data, performance indicators, and strategic financial implications.";
         break;
       case "annual-report":
+        title = "Annual Report Summary";
         prompt = "Summarize this as if it were an annual report. Include background information, key decisions, important data points, achievements, challenges, and future outlook.";
         break;
       case "legal":
+        title = "Legal Document Summary";
         prompt = "Summarize this content as if it were a legal document. Highlight key legal terms, obligations, rights, potential liabilities, and important clauses in a structured format.";
         break;
       case "contract":
+        title = "Contract Analysis";
         prompt = "Review this content as if it were a contract. Identify potential liabilities, obligations, risks, terms, conditions, and important details that would be relevant in a contract review.";
         break;
       case "meeting":
+        title = "Meeting Minutes";
         prompt = "Summarize this content as if it were meeting minutes. Capture key discussion points, decisions made, action items, and essential information for those who couldn't attend.";
         break;
       case "essay":
+        title = "Academic Essay Resource";
         prompt = "Generate an academic summary of this content with properly structured sections that would be useful for research or essay writing. Include key concepts, evidence, and citations where relevant.";
         break;
       case "blog":
+        title = "Blog Post Draft";
         prompt = "Convert this content into an SEO-friendly blog post format with an engaging introduction, well-structured body with subheadings, and a conclusion. Use a conversational yet informative tone.";
         break;
       case "flashcards":
+        title = "Study Flashcards";
         prompt = "Generate a set of flashcards from this content with clear questions on one side and concise answers on the other. Focus on key concepts, definitions, and important facts.";
         break;
       case "podcast":
+        title = "Podcast Script";
         prompt = "Create a conversational podcast script based on this content. Include an engaging introduction, main discussion points, transitions between topics, and a conclusion that would work well in audio format.";
+        break;
+      case "quiz-flashcards":
+        title = "AI Flash Cards";
+        prompt = "Create an interactive quiz with flashcards based on this content. Generate 10-15 question-answer pairs that test understanding of the key concepts, facts, and insights.";
         break;
       default:
         title = "Summary";
@@ -1626,21 +2043,21 @@ export default function VideoDetailsPage() {
                       onClick={() => handleSummaryTemplate("industry")}
                       sx={{ py: 0.8, px: 2, fontSize: '0.85rem' }}
                     >
-                      Industry & Market Reports Summary
+                      Industry & Market Analysis
                     </MenuItem>
                     
                     <MenuItem 
                       onClick={() => handleSummaryTemplate("financial")}
                       sx={{ py: 0.8, px: 2, fontSize: '0.85rem' }}
                     >
-                      Financial Statements Assistant
+                      Financial Summary
                     </MenuItem>
                     
                     <MenuItem 
                       onClick={() => handleSummaryTemplate("annual-report")}
                       sx={{ py: 0.8, px: 2, fontSize: '0.85rem' }}
                     >
-                      Annual Report Summarizer
+                      Annual Report Summary
                     </MenuItem>
                     
                     <Divider sx={{ my: 1 }} />
@@ -1663,21 +2080,21 @@ export default function VideoDetailsPage() {
                       onClick={() => handleSummaryTemplate("legal")}
                       sx={{ py: 0.8, px: 2, fontSize: '0.85rem' }}
                     >
-                      Legal Documents Summarizer
+                      Legal Document Summary
                     </MenuItem>
                     
                     <MenuItem 
                       onClick={() => handleSummaryTemplate("contract")}
                       sx={{ py: 0.8, px: 2, fontSize: '0.85rem' }}
                     >
-                      Contract Review Assistant
+                      Contract Analysis
                     </MenuItem>
                     
                     <MenuItem 
                       onClick={() => handleSummaryTemplate("meeting")}
                       sx={{ py: 0.8, px: 2, fontSize: '0.85rem' }}
                     >
-                      Meeting Minutes Summarizer
+                      Meeting Minutes
                     </MenuItem>
                     
                     <Divider sx={{ my: 1 }} />
@@ -1700,28 +2117,28 @@ export default function VideoDetailsPage() {
                       onClick={() => handleSummaryTemplate("essay")}
                       sx={{ py: 0.8, px: 2, fontSize: '0.85rem' }}
                     >
-                      Essay Resource Organizer
+                      Academic Essay Resource
                     </MenuItem>
                     
                     <MenuItem 
                       onClick={() => handleSummaryTemplate("blog")}
                       sx={{ py: 0.8, px: 2, fontSize: '0.85rem' }}
                     >
-                      Blog Post Converter
+                      Blog Post Draft
                     </MenuItem>
                     
                     <MenuItem 
                       onClick={() => handleSummaryTemplate("flashcards")}
                       sx={{ py: 0.8, px: 2, fontSize: '0.85rem' }}
                     >
-                      AI Flashcard Generator
+                      Study Flashcards
                     </MenuItem>
                     
                     <MenuItem 
                       onClick={() => handleSummaryTemplate("podcast")}
                       sx={{ py: 0.8, px: 2, fontSize: '0.85rem' }}
                     >
-                      Podcast Script Generator
+                      Podcast Script
                     </MenuItem>
                   </Menu>
                   
@@ -1833,6 +2250,28 @@ export default function VideoDetailsPage() {
                     </Paper>
                   )}
                 </Box>
+                
+                {/* AI Flash Card Button */}
+                <Tooltip title="AI Flash Cards">
+                  <IconButton
+                    size="small"
+                    onClick={() => handleSummaryTemplate("quiz-flashcards")}
+                    disabled={isSummarizing || transcriptLoading || transcriptSegments.length === 0}
+                    sx={{
+                      bgcolor: theme.palette.background.paper,
+                      color: theme.palette.text.secondary,
+                      width: "20px",
+                      height: "20px",
+                      "&:hover": {
+                        bgcolor: theme.palette.divider,
+                        color: theme.palette.text.primary,
+                      },
+                    }}
+                  >
+                    <SchoolIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                
                 <Tooltip title="Add Notes">
                 <IconButton
                   size="small"
@@ -1856,32 +2295,32 @@ export default function VideoDetailsPage() {
             {/* Summary and Highlights */}
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {/* Default Summary Card - always show this one first */}
-              <Paper
-                elevation={0}
-                sx={{
-                  border: `1px solid ${theme.palette.divider}`,
-                  borderRadius: 2,
-                  p: 2,
-                  bgcolor: theme.palette.background.paper,
-                  width: "100%",
-                  overflowY: "auto",
-                  pr: 1,
-                  "&::-webkit-scrollbar": {
-                    width: "6px",
+            <Paper
+              elevation={0}
+              sx={{
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 2,
+                p: 2,
+                bgcolor: theme.palette.background.paper,
+                width: "100%",
+                overflowY: "auto",
+                pr: 1,
+                "&::-webkit-scrollbar": {
+                  width: "6px",
+                },
+                "&::-webkit-scrollbar-track": {
+                  background: theme.palette.mode === 'light' ? "#F3F4F6" : "#2a2a3a",
+                  borderRadius: "3px",
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  background: theme.palette.mode === 'light' ? "#D1D5DB" : "#4a4a5a",
+                  borderRadius: "3px",
+                  "&:hover": {
+                    background: theme.palette.mode === 'light' ? "#9CA3AF" : "#5a5a6a",
                   },
-                  "&::-webkit-scrollbar-track": {
-                    background: theme.palette.mode === 'light' ? "#F3F4F6" : "#2a2a3a",
-                    borderRadius: "3px",
-                  },
-                  "&::-webkit-scrollbar-thumb": {
-                    background: theme.palette.mode === 'light' ? "#D1D5DB" : "#4a4a5a",
-                    borderRadius: "3px",
-                    "&:hover": {
-                      background: theme.palette.mode === 'light' ? "#9CA3AF" : "#5a5a6a",
-                    },
-                  },
-                }}
-              >
+                },
+              }}
+            >
                 {isSummarizing && !summaryCards.some(card => card.type !== 'default') ? (
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                     <CircularProgress size={40} sx={{ mb: 2 }} />
@@ -1914,7 +2353,7 @@ export default function VideoDetailsPage() {
                     
                     {/* Edit and Delete buttons */}
                     <Box 
-                      sx={{
+                sx={{
                         position: 'absolute',
                         bottom: 10,
                         right: 10,
@@ -1963,7 +2402,7 @@ export default function VideoDetailsPage() {
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                     <Typography variant="body1" sx={{ textAlign: 'center', color: theme.palette.text.secondary }}>
                       Summarizing...
-                    </Typography>
+              </Typography>
                   </Box>
                 )}
               </Paper>
@@ -1973,12 +2412,12 @@ export default function VideoDetailsPage() {
                 <Paper
                   key={card.id}
                   elevation={0}
-                  sx={{
+                sx={{
                     border: `1px solid ${theme.palette.divider}`,
                     borderRadius: 2,
                     p: 2,
                     bgcolor: theme.palette.background.paper,
-                    width: "100%",
+                  width: "100%",
                     overflowY: "auto",
                     pr: 1,
                     "&::-webkit-scrollbar": {
@@ -2066,11 +2505,21 @@ export default function VideoDetailsPage() {
                       >
                         {card.title}
                       </Typography>
-                      <ReactMarkdown>{card.content}</ReactMarkdown>
+                      
+                      {card.type === 'quiz-flashcards' && card.flashcards ? (
+                        // Render flashcard carousel for quiz cards
+                        <FlashcardCarousel 
+                          cards={card.flashcards} 
+                          title={card.title}
+                        />
+                      ) : (
+                        // Regular markdown content for other types
+                        <ReactMarkdown>{card.content}</ReactMarkdown>
+                      )}
                       
                       {/* Edit and Delete buttons */}
                       <Box 
-                        sx={{
+                sx={{
                           position: 'absolute',
                           bottom: 10,
                           right: 10,
@@ -2106,7 +2555,7 @@ export default function VideoDetailsPage() {
                       </Box>
                     </Box>
                   )}
-                </Paper>
+            </Paper>
               ))}
               
               {/* Show loading indicator for additional summaries */}
