@@ -29,8 +29,8 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 To run the flask server, first activate the virtual environment and install dependencies
 
 ```
-python3 venv env
-source venv/bin/activate
+python3 -m venv env
+cd api && source env/bin/activate
 ```
 Once, the envireonment is activate, install the dependencies
 
