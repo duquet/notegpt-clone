@@ -30,7 +30,7 @@ To run the flask server, first activate the virtual environment and install depe
 
 ```
 python3 venv env
-source venv/bin/activate
+cd api && source env/bin/activate
 ```
 Once, the envireonment is activate, install the dependencies
 
