@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import YouTube, { YouTubePlayer, YouTubeProps, YouTubeEvent } from "react-youtube";
+import pptxgen from "pptxgenjs";
 import {
   Box,
   Grid,
@@ -127,6 +128,16 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
+// Get appropriate color for difficulty level
+const getDifficultyColor = (difficulty: string): string => {
+  switch(difficulty.toLowerCase()) {
+    case 'easy': return '#4caf50'; // green
+    case 'medium': return '#ff9800'; // orange
+    case 'hard': return '#f44336'; // red
+    default: return '#2196f3'; // blue for unknown
+  }
+};
+
 // FlashCard component for interactive quiz cards
 interface FlashCardProps {
   question: string;
@@ -135,26 +146,17 @@ interface FlashCardProps {
   category: string;
 }
 
-const FlashCard: React.FC<FlashCardProps> = ({ question, answer, difficulty, category }) => {
-  const [isFlipped, setIsFlipped] = useState(false);
-  
-  const handleCardClick = () => {
-    setIsFlipped(!isFlipped);
-  };
-  
-  // Get appropriate color for difficulty level
-  const getDifficultyColor = () => {
-    switch(difficulty.toLowerCase()) {
-      case 'easy': return '#4caf50'; // green
-      case 'medium': return '#ff9800'; // orange
-      case 'hard': return '#f44336'; // red
-      default: return '#2196f3'; // blue for unknown
-    }
-  };
-  
+const FlashCard: React.FC<FlashCardProps & { isFlipped: boolean; onFlip: () => void }> = ({ 
+  question, 
+  answer, 
+  difficulty, 
+  category,
+  isFlipped,
+  onFlip
+}) => {
   return (
     <Box 
-      onClick={handleCardClick}
+      onClick={onFlip}
       sx={{
         width: '100%',
         height: '280px',
@@ -196,7 +198,7 @@ const FlashCard: React.FC<FlashCardProps> = ({ question, answer, difficulty, cat
             <Typography 
               variant="caption" 
               sx={{ 
-                bgcolor: getDifficultyColor(),
+                bgcolor: getDifficultyColor(difficulty),
                 color: 'white',
                 px: 1,
                 py: 0.5,
@@ -314,16 +316,19 @@ interface FlashcardCarouselProps {
 
 const FlashcardCarousel: React.FC<FlashcardCarouselProps> = ({ cards, title }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isFlipped, setIsFlipped] = useState(false);
   const theme = useTheme();
   
   const handleNext = (e: React.MouseEvent) => {
     e.stopPropagation();
     setCurrentIndex((prevIndex) => (prevIndex + 1) % cards.length);
+    setIsFlipped(false); // Reset flip state when navigating
   };
   
   const handlePrevious = (e: React.MouseEvent) => {
     e.stopPropagation();
     setCurrentIndex((prevIndex) => (prevIndex - 1 + cards.length) % cards.length);
+    setIsFlipped(false); // Reset flip state when navigating
   };
   
   // Validate cards array
@@ -383,14 +388,14 @@ const FlashcardCarousel: React.FC<FlashcardCarouselProps> = ({ cards, title }) =
       </Typography>
       
       <Box sx={{ px: 6 }}>
-        <FlashCard {...cards[currentIndex]} />
+        <FlashCard {...cards[currentIndex]} isFlipped={isFlipped} onFlip={() => setIsFlipped(!isFlipped)} />
       </Box>
       
       <Box sx={{ 
         display: 'flex', 
         justifyContent: 'center', 
         mt: 3,
-        gap: 2 // Add gap between buttons
+        gap: 2
       }}>
         <IconButton 
           onClick={handlePrevious}
@@ -2220,7 +2225,7 @@ ${fullTranscript}`;
                         }}
                       />
                       <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5 }}>
-                        <Button 
+                <Button
                           size="small" 
                           onClick={handleCancelCustomPrompt}
                           sx={{ 
@@ -2234,7 +2239,7 @@ ${fullTranscript}`;
                         </Button>
                         <Button 
                           size="small" 
-                          variant="contained" 
+                  variant="contained"
                           onClick={handleSubmitCustomPrompt}
                           sx={{ 
                             textTransform: 'none',
@@ -2254,15 +2259,15 @@ ${fullTranscript}`;
                 {/* AI Flash Card Button */}
                 <Tooltip title="AI Flash Cards">
                   <IconButton
-                    size="small"
+                  size="small"
                     onClick={() => handleSummaryTemplate("quiz-flashcards")}
                     disabled={isSummarizing || transcriptLoading || transcriptSegments.length === 0}
-                    sx={{
+                  sx={{
                       bgcolor: theme.palette.background.paper,
                       color: theme.palette.text.secondary,
                       width: "20px",
-                      height: "20px",
-                      "&:hover": {
+                    height: "20px",
+                    "&:hover": {
                         bgcolor: theme.palette.divider,
                         color: theme.palette.text.primary,
                       },
@@ -2495,16 +2500,16 @@ ${fullTranscript}`;
                         color: theme.palette.primary.main
                       },
                     }}>
-                      <Typography 
+              <Typography
                         variant="subtitle1" 
-                        sx={{ 
+                sx={{
                           fontWeight: 'bold', 
-                          mb: 2,
+                  mb: 2,
                           color: theme.palette.primary.main 
-                        }}
-                      >
+                }}
+              >
                         {card.title}
-                      </Typography>
+              </Typography>
                       
                       {card.type === 'quiz-flashcards' && card.flashcards ? (
                         // Render flashcard carousel for quiz cards
@@ -2517,29 +2522,234 @@ ${fullTranscript}`;
                         <ReactMarkdown>{card.content}</ReactMarkdown>
                       )}
                       
-                      {/* Edit and Delete buttons */}
+                      {/* Action Buttons */}
                       <Box 
-                sx={{
+                        sx={{
                           position: 'absolute',
                           bottom: 10,
                           right: 10,
                           display: 'flex',
                           gap: 1,
-                          mt: 3 // Add top margin
+                          mt: 3
                         }}
                       >
-                        <IconButton 
-                          size="small"
-                          sx={{ 
-                            bgcolor: theme.palette.background.paper,
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                            color: theme.palette.primary.main,
-                            '&:hover': { bgcolor: theme.palette.primary.light, color: '#fff' }
-                          }}
-                          onClick={() => handleEditSummaryCard(card.id)}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
+                        {card.type === 'quiz-flashcards' ? (
+                          <>
+                            <IconButton 
+                              size="small"
+                              onClick={() => {
+                                // Copy all flashcards to clipboard
+                                const flashcardsText = card.flashcards?.map(fc => 
+                                  `Question: ${fc.question}\nAnswer: ${fc.answer}\nDifficulty: ${fc.difficulty}\nCategory: ${fc.category}\n`
+                                ).join('\n');
+                                navigator.clipboard.writeText(flashcardsText || '');
+                                setShowCopyAlert(true);
+                              }}
+                              sx={{ 
+                                bgcolor: theme.palette.background.paper,
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                color: theme.palette.primary.main,
+                                '&:hover': { bgcolor: theme.palette.primary.light, color: '#fff' }
+                              }}
+                            >
+                              <ContentCopyIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton 
+                              size="small"
+                              onClick={async () => {
+                                try {
+                                  // Create a new presentation
+                                  const pres = new pptxgen();
+                                  
+                                  // Set presentation properties
+                                  pres.layout = 'LAYOUT_16x9';
+                                  pres.author = 'NoteGPT';
+                                  pres.title = card.title || 'Flash Cards';
+                                  
+                                  // Add title slide
+                                  let slide = pres.addSlide();
+                                  slide.background = { color: 'FFFFFF' };
+                                  slide.addText(card.title || "Flash Cards", {
+                                    x: 0.5,
+                                    y: 1.5,
+                                    w: '90%',
+                                    h: 1.5,
+                                    fontSize: 44,
+                                    color: '363636',
+                                    bold: true,
+                                    align: 'center',
+                                    fontFace: 'Arial'
+                                  });
+                                  
+                                  // Add each flashcard (question and answer slides)
+                                  card.flashcards?.forEach((fc, idx) => {
+                                    // Question slide
+                                    slide = pres.addSlide();
+                                    slide.background = { color: 'FFFFFF' };
+                                    
+                                    // Card number
+                                    slide.addText(`Card ${idx + 1}`, {
+                                      x: 0.5,
+                                      y: 0.25,
+                                      w: 2,
+                                      h: 0.5,
+                                      fontSize: 14,
+                                      color: '666666',
+                                      fontFace: 'Arial'
+                                    });
+                                    
+                                    // Difficulty badge
+                                    slide.addText(fc.difficulty.toUpperCase(), {
+                                      x: 0.5,
+                                      y: 0.5,
+                                      w: 1.5,
+                                      h: 0.4,
+                                      fontSize: 12,
+                                      color: 'FFFFFF',
+                                      fill: { color: getDifficultyColor(fc.difficulty).replace('#', '') },
+                                      align: 'center',
+                                      fontFace: 'Arial',
+                                      bold: true
+                                    });
+                                    
+                                    // Category badge
+                                    slide.addText(fc.category, {
+                                      x: 2.2,
+                                      y: 0.5,
+                                      w: 2,
+                                      h: 0.4,
+                                      fontSize: 12,
+                                      color: 'FFFFFF',
+                                      fill: { color: '2196F3' },
+                                      align: 'center',
+                                      fontFace: 'Arial'
+                                    });
+                                    
+                                    // Question label
+                                    slide.addText("Question", {
+                                      x: 0.5,
+                                      y: 1.2,
+                                      w: '90%',
+                                      h: 0.6,
+                                      fontSize: 28,
+                                      color: '363636',
+                                      bold: true,
+                                      align: 'center',
+                                      fontFace: 'Arial'
+                                    });
+                                    
+                                    // Question text
+                                    slide.addText(fc.question, {
+                                      x: 0.5,
+                                      y: 2,
+                                      w: '90%',
+                                      h: 2,
+                                      fontSize: 20,
+                                      color: '363636',
+                                      align: 'center',
+                                      fontFace: 'Arial',
+                                      breakLine: true
+                                    });
+                                    
+                                    // Answer slide
+                                    slide = pres.addSlide();
+                                    slide.background = { color: 'FFFFFF' };
+                                    
+                                    // Card number
+                                    slide.addText(`Card ${idx + 1}`, {
+                                      x: 0.5,
+                                      y: 0.25,
+                                      w: 2,
+                                      h: 0.5,
+                                      fontSize: 14,
+                                      color: '666666',
+                                      fontFace: 'Arial'
+                                    });
+                                    
+                                    // Difficulty badge
+                                    slide.addText(fc.difficulty.toUpperCase(), {
+                                      x: 0.5,
+                                      y: 0.5,
+                                      w: 1.5,
+                                      h: 0.4,
+                                      fontSize: 12,
+                                      color: 'FFFFFF',
+                                      fill: { color: getDifficultyColor(fc.difficulty).replace('#', '') },
+                                      align: 'center',
+                                      fontFace: 'Arial',
+                                      bold: true
+                                    });
+                                    
+                                    // Category badge
+                                    slide.addText(fc.category, {
+                                      x: 2.2,
+                                      y: 0.5,
+                                      w: 2,
+                                      h: 0.4,
+                                      fontSize: 12,
+                                      color: 'FFFFFF',
+                                      fill: { color: '2196F3' },
+                                      align: 'center',
+                                      fontFace: 'Arial'
+                                    });
+                                    
+                                    // Answer label
+                                    slide.addText("Answer", {
+                                      x: 0.5,
+                                      y: 1.2,
+                                      w: '90%',
+                                      h: 0.6,
+                                      fontSize: 28,
+                                      color: '2196F3',
+                                      bold: true,
+                                      align: 'center',
+                                      fontFace: 'Arial'
+                                    });
+                                    
+                                    // Answer text
+                                    slide.addText(fc.answer, {
+                                      x: 0.5,
+                                      y: 2,
+                                      w: '90%',
+                                      h: 2,
+                                      fontSize: 20,
+                                      color: '363636',
+                                      align: 'center',
+                                      fontFace: 'Arial',
+                                      breakLine: true
+                                    });
+                                  });
+                                  
+                                  // Save the presentation
+                                  await pres.writeFile({ fileName: `${card.title || 'flashcards'}.pptx` });
+                                } catch (error) {
+                                  console.error('Error generating PPTX:', error);
+                                }
+                              }}
+                              sx={{ 
+                                bgcolor: theme.palette.background.paper,
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                color: theme.palette.primary.main,
+                                '&:hover': { bgcolor: theme.palette.primary.light, color: '#fff' }
+                              }}
+                            >
+                              <DownloadIcon fontSize="small" />
+                            </IconButton>
+                          </>
+                        ) : (
+                          <IconButton 
+                            size="small"
+                            sx={{ 
+                              bgcolor: theme.palette.background.paper,
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                              color: theme.palette.primary.main,
+                              '&:hover': { bgcolor: theme.palette.primary.light, color: '#fff' }
+                            }}
+                            onClick={() => handleEditSummaryCard(card.id)}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        )}
                         <IconButton 
                           size="small"
                           sx={{ 
