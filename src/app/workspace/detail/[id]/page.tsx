@@ -591,6 +591,9 @@ export default function VideoDetailsPage() {
         // Mark content as loaded to prevent further fetches
         contentLoadedRef.current = true;
 
+        // Make sure loading state is reset when we have content
+        setIsSummarizing(false);
+
         // Process summaries
         summaries.forEach((summary) => {
           if (summary.type === "default") {
@@ -2137,6 +2140,15 @@ ${fullTranscript}`;
       setIsSummarizing(false);
     }
   };
+
+  // Ensure the loading state is reset when page is revisited
+  useEffect(() => {
+    // Check if we have any saved summary cards and reset loading state
+    if (summaryCards.length > 0) {
+      console.log("Found existing summary cards, resetting loading state");
+      setIsSummarizing(false);
+    }
+  }, [summaryCards]);
 
   return (
     <Box sx={{ p: 2, fontFamily: "Inter, sans-serif" }}>
