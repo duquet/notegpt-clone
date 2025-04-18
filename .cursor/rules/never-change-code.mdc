@@ -1,0 +1,7 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+Never change code that has been manually edited since the last AI conversation unless I explicitly request it.
