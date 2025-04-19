@@ -482,7 +482,7 @@ export default function VideoDetailsPage() {
   const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
   const [currentVideoTime, setCurrentVideoTime] = useState(0);
   const [videoDuration, setVideoDuration] = useState<number | null>(null);
-  const [autoScroll, setAutoScroll] = useState(false);
+  const [autoScroll, setAutoScroll] = useState(true);
   const [downloadAnchorEl, setDownloadAnchorEl] = useState<null | HTMLElement>(
     null
   );
@@ -2163,8 +2163,11 @@ ${fullTranscript}`;
     }
   }, [summaryCards, flashcardSets]);
 
-  // After the time tracking useEffect, add back the segment tracking useEffect
+  // Modify the useEffect that handles segment tracking
   useEffect(() => {
+    // Only track and highlight segments if autoScroll is enabled
+    if (!autoScroll) return;
+
     // Find the transcript segment that corresponds to the current video time
     const newIndex = transcriptSegments.findIndex(
       (segment) =>
@@ -2175,8 +2178,8 @@ ${fullTranscript}`;
     if (newIndex !== -1 && newIndex !== currentSegmentIndex) {
       setCurrentSegmentIndex(newIndex);
 
-      // Only scroll when auto-scroll is enabled
-      if (autoScroll && transcriptRef.current) {
+      // Scroll to the current segment
+      if (transcriptRef.current) {
         const segmentElement = transcriptRef.current.querySelector(
           `[data-segment-index="${newIndex}"]`
         );
@@ -2604,7 +2607,7 @@ ${fullTranscript}`;
                       width: "100%",
                       cursor: "pointer",
                       bgcolor:
-                        currentSegmentIndex === index
+                        autoScroll && currentSegmentIndex === index
                           ? theme.palette.mode === "light"
                             ? "rgba(25, 118, 210, 0.08)"
                             : "rgba(144, 202, 249, 0.08)"
@@ -2613,7 +2616,7 @@ ${fullTranscript}`;
                       transition: "background-color 0.3s ease",
                       "&:hover": {
                         bgcolor:
-                          currentSegmentIndex === index
+                          autoScroll && currentSegmentIndex === index
                             ? theme.palette.mode === "light"
                               ? "rgba(25, 118, 210, 0.12)"
                               : "rgba(144, 202, 249, 0.12)"
@@ -2635,11 +2638,13 @@ ${fullTranscript}`;
                       <Typography
                         sx={{
                           color:
-                            currentSegmentIndex === index
+                            autoScroll && currentSegmentIndex === index
                               ? theme.palette.primary.main
                               : theme.palette.text.primary,
                           fontWeight:
-                            currentSegmentIndex === index ? "bold" : "normal",
+                            autoScroll && currentSegmentIndex === index
+                              ? "bold"
+                              : "normal",
                           fontSize: "0.875rem",
                         }}
                       >
@@ -2660,7 +2665,7 @@ ${fullTranscript}`;
                       className="transcript-text"
                       sx={{
                         color:
-                          currentSegmentIndex === index
+                          autoScroll && currentSegmentIndex === index
                             ? theme.palette.primary.main
                             : theme.palette.text.primary,
                         fontSize: "1rem",
@@ -2668,7 +2673,9 @@ ${fullTranscript}`;
                         width: "100%",
                         pr: 2,
                         fontWeight:
-                          currentSegmentIndex === index ? 500 : "normal",
+                          autoScroll && currentSegmentIndex === index
+                            ? 500
+                            : "normal",
                       }}
                     >
                       {segment.text}
