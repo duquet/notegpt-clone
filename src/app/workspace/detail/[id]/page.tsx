@@ -3295,6 +3295,30 @@ ${fullTranscript}`;
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </Box>
+
+                    {/* Add styled Summary title box to bottom left */}
+                    <Box
+                      sx={{
+                        display: "inline-block",
+                        fontSize: "14px",
+                        height: "30px",
+                        lineHeight: "28px",
+                        color: "#2e83fb",
+                        fontWeight: "bold",
+                        borderRadius: "var(--base-card-border-radius, 8px)",
+                        backgroundColor:
+                          "var(--base-tag-background-color, rgba(46, 131, 251, 0.1))",
+                        borderColor:
+                          "var(--base-tag-border-color, rgba(46, 131, 251, 0.3))",
+                        border: "1px solid rgba(46, 131, 251, 0.3)",
+                        padding: "0 12px",
+                        position: "absolute",
+                        bottom: 0,
+                        left: 0,
+                      }}
+                    >
+                      Summary
+                    </Box>
                   </Box>
                 ) : (
                   <Box
@@ -3503,6 +3527,30 @@ ${fullTranscript}`;
                           >
                             <DeleteIcon fontSize="small" />
                           </IconButton>
+                        </Box>
+
+                        {/* Add styled title box with card's title */}
+                        <Box
+                          sx={{
+                            display: "inline-block",
+                            fontSize: "14px",
+                            height: "30px",
+                            lineHeight: "28px",
+                            color: "#2e83fb",
+                            fontWeight: "bold",
+                            borderRadius: "var(--base-card-border-radius, 8px)",
+                            backgroundColor:
+                              "var(--base-tag-background-color, rgba(46, 131, 251, 0.1))",
+                            borderColor:
+                              "var(--base-tag-border-color, rgba(46, 131, 251, 0.3))",
+                            border: "1px solid rgba(46, 131, 251, 0.3)",
+                            padding: "0 12px",
+                            position: "absolute",
+                            bottom: 0,
+                            left: 0,
+                          }}
+                        >
+                          {card.title}
                         </Box>
                       </Box>
                     )}
