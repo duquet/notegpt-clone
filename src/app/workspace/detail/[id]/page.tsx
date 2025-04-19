@@ -2611,8 +2611,7 @@ ${fullTranscript}`;
                           fontSize: "0.875rem",
                         }}
                       >
-                        {formatTime(segment.startTime)} -{" "}
-                        {formatTime(segment.endTime)}
+                        {formatTime(segment.startTime)}
                       </Typography>
                       <KeyboardArrowDownIcon
                         sx={{
