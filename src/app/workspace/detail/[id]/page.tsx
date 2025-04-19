@@ -975,9 +975,9 @@ export default function VideoDetailsPage() {
     return segments;
   };
 
-  // Monitor YouTube player and update transcript highlighting
+  // Update the useEffect that sets up time tracking
   useEffect(() => {
-    if (loading || transcriptSegments.length === 0 || !playerRef.current) {
+    if (loading || transcriptSegments.length === 0) {
       return;
     }
 
@@ -985,6 +985,7 @@ export default function VideoDetailsPage() {
     const startTimeTracking = () => {
       if (playerCheckInterval.current) {
         clearInterval(playerCheckInterval.current);
+        playerCheckInterval.current = null;
       }
 
       // Simple interval to update current time
@@ -994,62 +995,66 @@ export default function VideoDetailsPage() {
             const currentTime = playerRef.current.getCurrentTime();
             if (!isNaN(currentTime)) {
               setCurrentVideoTime(currentTime);
+              console.log("Updated time:", currentTime);
             }
           } catch (e) {
             console.error("Error getting current time:", e);
           }
         }
       }, 500); // Check time every 500ms for smoother updates
+
+      console.log("Time tracking interval started");
     };
 
-    // Start tracking
-    startTimeTracking();
+    // Start tracking if player is ready
+    if (playerRef.current && playerInitializedRef.current) {
+      console.log("Starting time tracking with initialized player");
+      startTimeTracking();
+    } else {
+      console.log("Player not ready yet for time tracking");
+    }
 
     return () => {
       if (playerCheckInterval.current) {
         clearInterval(playerCheckInterval.current);
         playerCheckInterval.current = null;
+        console.log("Time tracking interval cleaned up");
       }
     };
-  }, [loading, transcriptSegments, playerRef.current]);
+  }, [
+    loading,
+    transcriptSegments,
+    playerRef.current,
+    playerInitializedRef.current,
+  ]);
 
-  // Update highlighted segment whenever currentVideoTime changes
-  useEffect(() => {
-    // Find the transcript segment that corresponds to the current video time
-    const newIndex = transcriptSegments.findIndex(
-      (segment) =>
-        currentVideoTime >= segment.startTime &&
-        currentVideoTime < segment.endTime
-    );
+  // Improve the handleReady function to ensure proper initialization
+  const handleReady = (event: YouTubeEvent) => {
+    console.log("YouTube player ready event received");
 
-    if (newIndex !== -1 && newIndex !== currentSegmentIndex) {
-      setCurrentSegmentIndex(newIndex);
+    playerRef.current = event.target;
+    playerInitializedRef.current = true;
+    console.log("YouTube player initialized");
 
-      // Only scroll when auto-scroll is enabled
-      if (autoScroll && transcriptRef.current) {
-        const segmentElement = transcriptRef.current.querySelector(
-          `[data-segment-index="${newIndex}"]`
-        );
-        if (segmentElement) {
-          segmentElement.scrollIntoView({
-            behavior: "smooth",
-            block: "nearest",
-          });
+    // Start time tracking now that player is ready
+    if (playerCheckInterval.current) {
+      clearInterval(playerCheckInterval.current);
+      playerCheckInterval.current = null;
+    }
+
+    playerCheckInterval.current = setInterval(() => {
+      if (playerRef.current) {
+        try {
+          const currentTime = playerRef.current.getCurrentTime();
+          if (!isNaN(currentTime)) {
+            setCurrentVideoTime(currentTime);
+          }
+        } catch (e) {
+          console.error("Error getting current time from player:", e);
         }
       }
-    }
-  }, [currentVideoTime, transcriptSegments, currentSegmentIndex, autoScroll]);
-
-  // Handle YouTube player ready event
-  const handleReady = (event: YouTubeEvent) => {
-    if (playerInitializedRef.current) {
-      console.log("Player already initialized, skipping setup");
-      return;
-    }
-
-    playerInitializedRef.current = true;
-    playerRef.current = event.target;
-    console.log("YouTube player ready");
+    }, 500);
+    console.log("Time tracking started from player ready handler");
 
     // Get duration if available
     try {
@@ -1062,7 +1067,6 @@ export default function VideoDetailsPage() {
         if (transcriptSegments.length > 0) {
           // Make a copy of the original segments
           const originalSegments = [...transcriptSegments];
-          console.log("Original segments:", originalSegments);
 
           // Get the full text
           const fullText = originalSegments
@@ -1071,7 +1075,6 @@ export default function VideoDetailsPage() {
 
           // Recreate segments with accurate duration
           const fixedSegments = createTranscriptSegments(fullText, duration);
-          console.log("Fixed segments:", fixedSegments);
 
           // Only update if the segments are different
           if (
@@ -1113,20 +1116,29 @@ export default function VideoDetailsPage() {
     },
   };
 
-  // Handle click on transcript segment
+  // Fix the handleSegmentClick function to handle null player safely
   const handleSegmentClick = (startTime: number) => {
-    // Use YouTube API to seek
-    if (playerRef.current) {
-      playerRef.current.seekTo(startTime, true);
+    console.log("Segment click at time:", startTime);
 
-      // Update highlighted segment immediately
-      const segmentIndex = transcriptSegments.findIndex(
-        (segment) => segment.startTime === startTime
-      );
-      if (segmentIndex !== -1) {
-        setCurrentSegmentIndex(segmentIndex);
-        setCurrentVideoTime(startTime);
+    // Enhanced check for player availability and readiness
+    if (playerRef.current && playerInitializedRef.current) {
+      try {
+        playerRef.current.seekTo(startTime, true);
+        console.log("Successfully seeked to:", startTime);
+
+        // Update highlighted segment immediately
+        const segmentIndex = transcriptSegments.findIndex(
+          (segment) => segment.startTime === startTime
+        );
+        if (segmentIndex !== -1) {
+          setCurrentSegmentIndex(segmentIndex);
+          setCurrentVideoTime(startTime);
+        }
+      } catch (error) {
+        console.error("Error seeking to timestamp:", error);
       }
+    } else {
+      console.warn("YouTube player not ready yet for seeking");
     }
   };
 
@@ -1258,7 +1270,7 @@ export default function VideoDetailsPage() {
     if (segmentElement) {
       segmentElement.scrollIntoView({
         behavior: "smooth",
-        block: "center",
+        block: "nearest",
       });
     }
   };
@@ -2151,6 +2163,33 @@ ${fullTranscript}`;
       setIsGeneratingFlashcards(false);
     }
   }, [summaryCards, flashcardSets]);
+
+  // After the time tracking useEffect, add back the segment tracking useEffect
+  useEffect(() => {
+    // Find the transcript segment that corresponds to the current video time
+    const newIndex = transcriptSegments.findIndex(
+      (segment) =>
+        currentVideoTime >= segment.startTime &&
+        currentVideoTime < segment.endTime
+    );
+
+    if (newIndex !== -1 && newIndex !== currentSegmentIndex) {
+      setCurrentSegmentIndex(newIndex);
+
+      // Only scroll when auto-scroll is enabled
+      if (autoScroll && transcriptRef.current) {
+        const segmentElement = transcriptRef.current.querySelector(
+          `[data-segment-index="${newIndex}"]`
+        );
+        if (segmentElement) {
+          segmentElement.scrollIntoView({
+            behavior: "smooth",
+            block: "nearest",
+          });
+        }
+      }
+    }
+  }, [currentVideoTime, transcriptSegments, currentSegmentIndex, autoScroll]);
 
   return (
     <Box sx={{ p: 2, fontFamily: "Inter, sans-serif" }}>
