@@ -382,18 +382,27 @@ const FlashcardCarousel: React.FC<FlashcardCarouselProps> = ({
   }
 
   return (
-    <Box sx={{ position: "relative", width: "100%", pt: 2 }}>
-      <Typography
-        variant="h6"
+    <Box sx={{ position: "relative", width: "100%", pt: 1 }}>
+      {/* New styled AI Flash Cards title */}
+      <Box
         sx={{
-          textAlign: "center",
+          display: "inline-block",
+          fontSize: "14px",
+          height: "30px",
+          lineHeight: "28px",
+          color: "#2e83fb",
           fontWeight: "bold",
-          mb: 3,
-          color: "primary.main",
+          borderRadius: "var(--base-card-border-radius, 8px)",
+          backgroundColor:
+            "var(--base-tag-background-color, rgba(46, 131, 251, 0.1))",
+          borderColor: "var(--base-tag-border-color, rgba(46, 131, 251, 0.3))",
+          border: "1px solid rgba(46, 131, 251, 0.3)",
+          padding: "0 12px",
+          marginBottom: 2,
         }}
       >
-        {title}
-      </Typography>
+        AI Flash Cards
+      </Box>
 
       <Typography
         variant="body2"
@@ -3107,7 +3116,7 @@ ${fullTranscript}`;
                 </Box>
 
                 {/* AI Flash Card Button */}
-                <Tooltip title="AI Flash Cards">
+                <Tooltip title="">
                   <IconButton
                     size="small"
                     onClick={generateFlashcards}
@@ -3535,17 +3544,6 @@ ${fullTranscript}`;
                       position: "relative",
                     }}
                   >
-                    <Typography
-                      variant="subtitle1"
-                      sx={{
-                        fontWeight: "bold",
-                        mb: 2,
-                        color: theme.palette.primary.main,
-                      }}
-                    >
-                      {set.title}
-                    </Typography>
-
                     {/* Render flashcard carousel */}
                     <FlashcardCarousel
                       cards={set.flashcards}
