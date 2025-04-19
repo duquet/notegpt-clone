@@ -509,6 +509,7 @@ export default function VideoDetailsPage() {
   const [conclusionContent, setConclusionContent] = useState<string>("");
   const [markdownContent, setMarkdownContent] = useState<string>("");
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [isGeneratingFlashcards, setIsGeneratingFlashcards] = useState(false);
   const [summaryMenuAnchorEl, setSummaryMenuAnchorEl] =
     useState<null | HTMLElement>(null);
   const [customPrompt, setCustomPrompt] = useState("");
@@ -520,7 +521,14 @@ export default function VideoDetailsPage() {
       title: string;
       content: string;
       type: string;
-      flashcards?: Array<{
+    }>
+  >([]);
+  const [flashcardSets, setFlashcardSets] = useState<
+    Array<{
+      id: string;
+      title: string;
+      content: string;
+      flashcards: Array<{
         question: string;
         answer: string;
         difficulty: string;
@@ -641,7 +649,7 @@ export default function VideoDetailsPage() {
           }
         });
 
-        // Process flashcard sets
+        // Process flashcard sets - now using separate state
         flashcardSets.forEach((set) => {
           if (set.flashcards && set.flashcards.length > 0) {
             // Convert Flashcard[] to FlashCardProps[]
@@ -652,24 +660,23 @@ export default function VideoDetailsPage() {
               category: card.category || "General",
             }));
 
-            // Add to summaryCards if not already there
-            setSummaryCards((prevCards) => {
+            // Add to flashcardSets if not already there
+            setFlashcardSets((prevSets) => {
               // Check if this flashcard set already exists
               if (
-                !prevCards.some((card) => card.id === `flashcards-${set.id}`)
+                !prevSets.some((existingSet) => existingSet.id === `${set.id}`)
               ) {
                 return [
-                  ...prevCards,
+                  ...prevSets,
                   {
-                    id: `flashcards-${set.id}`,
+                    id: `${set.id}`,
                     title: set.title,
                     content: JSON.stringify(flashcardProps),
-                    type: "quiz-flashcards",
                     flashcards: flashcardProps,
                   },
                 ];
               }
-              return prevCards;
+              return prevSets;
             });
           }
         });
@@ -1451,14 +1458,14 @@ export default function VideoDetailsPage() {
     title?: string,
     templateType: string = "default"
   ) => {
-    if (isSummarizing) return;
+    if (isSummarizing) {
+      console.log("Already generating a summary, please wait...");
+      return;
+    }
+
+    setIsSummarizing(true);
 
     try {
-      setIsSummarizing(true);
-
-      // Get video ID from params
-      const videoId = params.id as string;
-
       // Get full transcript text
       const fullTranscript = translatedSegments
         .map((segment) => segment.text)
@@ -1578,14 +1585,13 @@ export default function VideoDetailsPage() {
         return;
       }
 
-      // If nothing exists in the database, generate a new summary/flashcards
+      // No existing summary or flashcards found, generate a new one
       let result;
 
       // Special handling for quiz-flashcards to ensure we get proper JSON
       if (templateType === "quiz-flashcards") {
         // Use a specific structure that encourages JSON generation
         const quizPrompt = `Create an interactive quiz with flashcards based on this content. Generate 10-15 question-answer pairs that test understanding of the key concepts, facts, and insights. Return ONLY a valid JSON array with objects having this structure: { "question": "...", "answer": "...", "difficulty": "(easy|medium|hard)", "category": "..." }. Do NOT include markdown formatting or code blocks, just the raw JSON array: 
-
 ${fullTranscript}`;
 
         result = await summarizeTranscript(fullTranscript, {
@@ -1593,8 +1599,11 @@ ${fullTranscript}`;
           customPrompt: quizPrompt,
         });
       } else {
-        // Regular approach for other templates
-        result = await summarizeTranscript(fullTranscript, prompt);
+        // For regular summaries, use the template or custom prompt
+        result = await summarizeTranscript(fullTranscript, {
+          templateType: templateType,
+          customPrompt: prompt,
+        });
       }
 
       // Save the result to the database
@@ -1604,9 +1613,9 @@ ${fullTranscript}`;
           setMarkdownContent(result);
 
           // Parse the result to separate sections
-          const sections = parseSummaryResponse(result, templateType);
+          const sections = parseSummaryResponse(result);
 
-          // Update state with the content sections for default summary
+          // Update state
           setSummaryContent(sections.summary);
           setKeyInsightsContent(sections.keyInsights);
           setHighlightsContent(sections.highlights);
@@ -2013,10 +2022,10 @@ ${fullTranscript}`;
 
   // Function to generate flashcards directly without requiring summary generation
   const generateFlashcards = async () => {
-    if (isSummarizing) return;
+    if (isGeneratingFlashcards) return;
 
     try {
-      setIsSummarizing(true);
+      setIsGeneratingFlashcards(true);
 
       // Get video ID from params
       const videoId = params.id as string;
@@ -2051,25 +2060,25 @@ ${fullTranscript}`;
             category: card.category || "General",
           }));
 
-          // Add to UI if not already there
-          if (
-            !summaryCards.some(
-              (card) => card.id === `flashcards-${existingFlashcards.id}`
-            )
-          ) {
-            setSummaryCards((prevCards) => [
-              ...prevCards,
-              {
-                id: `flashcards-${existingFlashcards.id}`,
-                title: existingFlashcards.title,
-                content: JSON.stringify(flashcardProps),
-                type: "quiz-flashcards",
-                flashcards: flashcardProps,
-              },
-            ]);
-          }
+          // Add to flashcardSets state if not already there
+          setFlashcardSets((prevSets) => {
+            if (
+              !prevSets.some((set) => set.id === `${existingFlashcards.id}`)
+            ) {
+              return [
+                ...prevSets,
+                {
+                  id: `${existingFlashcards.id}`,
+                  title: existingFlashcards.title,
+                  content: JSON.stringify(flashcardProps),
+                  flashcards: flashcardProps,
+                },
+              ];
+            }
+            return prevSets;
+          });
 
-          setIsSummarizing(false);
+          setIsGeneratingFlashcards(false);
           return;
         }
       } catch (dbError) {
@@ -2099,7 +2108,7 @@ ${fullTranscript}`;
           videoTitle: videoTitle,
           videoUrl: videoUrl,
           title: "AI Flash Cards",
-          flashcards: flashcards.map((card) => ({
+          flashcards: flashcards.map((card: any) => ({
             question: card.question,
             answer: card.answer,
             difficulty: card.difficulty || "medium",
@@ -2107,29 +2116,27 @@ ${fullTranscript}`;
           })),
         });
 
-        // Add to UI
-        setSummaryCards((prevCards) => [
-          ...prevCards,
+        // Add to flashcardSets state
+        setFlashcardSets((prevSets) => [
+          ...prevSets,
           {
-            id: `flashcards-${savedFlashcardSet?.id || Date.now()}`,
+            id: `${savedFlashcardSet?.id || Date.now()}`,
             title: "AI Flash Cards",
             content: result,
-            type: "quiz-flashcards",
             flashcards: flashcards,
           },
         ]);
       } catch (dbError) {
         console.error("Error saving flashcards to database:", dbError);
 
-        // Add to UI even if database save fails
-        const cardId = `flashcards-${Date.now()}`;
-        setSummaryCards((prevCards) => [
-          ...prevCards,
+        // Add to flashcardSets state even if database save fails
+        const cardId = `${Date.now()}`;
+        setFlashcardSets((prevSets) => [
+          ...prevSets,
           {
             id: cardId,
             title: "AI Flash Cards",
             content: result,
-            type: "quiz-flashcards",
             flashcards: flashcards,
           },
         ]);
@@ -2137,18 +2144,19 @@ ${fullTranscript}`;
     } catch (error) {
       console.error("Error generating flashcards:", error);
     } finally {
-      setIsSummarizing(false);
+      setIsGeneratingFlashcards(false);
     }
   };
 
-  // Ensure the loading state is reset when page is revisited
+  // Update the useEffect to check both summary cards and flashcard sets
   useEffect(() => {
-    // Check if we have any saved summary cards and reset loading state
-    if (summaryCards.length > 0) {
-      console.log("Found existing summary cards, resetting loading state");
+    // Check if we have any saved content and reset loading state
+    if (summaryCards.length > 0 || flashcardSets.length > 0) {
+      console.log("Found existing content, resetting loading state");
       setIsSummarizing(false);
+      setIsGeneratingFlashcards(false);
     }
-  }, [summaryCards]);
+  }, [summaryCards, flashcardSets]);
 
   return (
     <Box sx={{ p: 2, fontFamily: "Inter, sans-serif" }}>
@@ -3066,7 +3074,7 @@ ${fullTranscript}`;
                     size="small"
                     onClick={generateFlashcards}
                     disabled={
-                      isSummarizing ||
+                      isGeneratingFlashcards ||
                       transcriptLoading ||
                       transcriptSegments.length === 0
                     }
@@ -3137,8 +3145,7 @@ ${fullTranscript}`;
                   },
                 }}
               >
-                {isSummarizing &&
-                !summaryCards.some((card) => card.type !== "default") ? (
+                {isSummarizing ? (
                   <Box
                     sx={{
                       display: "flex",
@@ -3382,18 +3389,10 @@ ${fullTranscript}`;
                           {card.title}
                         </Typography>
 
-                        {card.type === "quiz-flashcards" && card.flashcards ? (
-                          // Render flashcard carousel for quiz cards
-                          <FlashcardCarousel
-                            cards={card.flashcards}
-                            title={card.title}
-                          />
-                        ) : (
-                          // Regular markdown content for other types
-                          <ReactMarkdown>{card.content}</ReactMarkdown>
-                        )}
+                        {/* Regular markdown content for summaries */}
+                        <ReactMarkdown>{card.content}</ReactMarkdown>
 
-                        {/* Action Buttons */}
+                        {/* Summary card action buttons */}
                         <Box
                           sx={{
                             position: "absolute",
@@ -3404,260 +3403,42 @@ ${fullTranscript}`;
                             mt: 3,
                           }}
                         >
-                          {card.type === "quiz-flashcards" ? (
-                            <>
-                              <IconButton
-                                size="small"
-                                onClick={() => {
-                                  // Copy all flashcards to clipboard
-                                  const flashcardsText = card.flashcards
-                                    ?.map(
-                                      (fc) =>
-                                        `Question: ${fc.question}\nAnswer: ${fc.answer}\nDifficulty: ${fc.difficulty}\nCategory: ${fc.category}\n`
-                                    )
-                                    .join("\n");
-                                  navigator.clipboard.writeText(
-                                    flashcardsText || ""
-                                  );
-                                  setShowCopyAlert(true);
-                                }}
-                                sx={{
-                                  bgcolor: theme.palette.background.paper,
-                                  boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                                  color: theme.palette.primary.main,
-                                  "&:hover": {
-                                    bgcolor: theme.palette.primary.light,
-                                    color: "#fff",
-                                  },
-                                }}
-                              >
-                                <ContentCopyIcon fontSize="small" />
-                              </IconButton>
-                              <IconButton
-                                size="small"
-                                onClick={async () => {
-                                  try {
-                                    // Create a new presentation
-                                    const pres = new pptxgen();
-
-                                    // Set presentation properties
-                                    pres.layout = "LAYOUT_16x9";
-                                    pres.author = "NoteGPT";
-                                    pres.title = card.title || "Flash Cards";
-
-                                    // Add title slide
-                                    let slide = pres.addSlide();
-                                    slide.background = { color: "FFFFFF" };
-                                    slide.addText(card.title || "Flash Cards", {
-                                      x: 0.5,
-                                      y: 1.5,
-                                      w: "90%",
-                                      h: 1.5,
-                                      fontSize: 44,
-                                      color: "363636",
-                                      bold: true,
-                                      align: "center",
-                                      fontFace: "Arial",
-                                    });
-
-                                    // Add each flashcard (question and answer slides)
-                                    card.flashcards?.forEach((fc, idx) => {
-                                      // Question slide
-                                      slide = pres.addSlide();
-                                      slide.background = { color: "FFFFFF" };
-
-                                      // Card number
-                                      slide.addText(`Card ${idx + 1}`, {
-                                        x: 0.5,
-                                        y: 0.25,
-                                        w: 2,
-                                        h: 0.5,
-                                        fontSize: 14,
-                                        color: "666666",
-                                        fontFace: "Arial",
-                                      });
-
-                                      // Difficulty badge
-                                      slide.addText(
-                                        fc.difficulty.toUpperCase(),
-                                        {
-                                          x: 0.5,
-                                          y: 0.5,
-                                          w: 1.5,
-                                          h: 0.4,
-                                          fontSize: 12,
-                                          color: "FFFFFF",
-                                          fill: {
-                                            color: getDifficultyColor(
-                                              fc.difficulty
-                                            ).replace("#", ""),
-                                          },
-                                          align: "center",
-                                          fontFace: "Arial",
-                                          bold: true,
-                                        }
-                                      );
-
-                                      // Category badge
-                                      slide.addText(fc.category, {
-                                        x: 2.2,
-                                        y: 0.5,
-                                        w: 2,
-                                        h: 0.4,
-                                        fontSize: 12,
-                                        color: "FFFFFF",
-                                        fill: { color: "2196F3" },
-                                        align: "center",
-                                        fontFace: "Arial",
-                                      });
-
-                                      // Question label
-                                      slide.addText("Question", {
-                                        x: 0.5,
-                                        y: 1.2,
-                                        w: "90%",
-                                        h: 0.6,
-                                        fontSize: 28,
-                                        color: "363636",
-                                        bold: true,
-                                        align: "center",
-                                        fontFace: "Arial",
-                                      });
-
-                                      // Question text
-                                      slide.addText(fc.question, {
-                                        x: 0.5,
-                                        y: 2,
-                                        w: "90%",
-                                        h: 2,
-                                        fontSize: 20,
-                                        color: "363636",
-                                        align: "center",
-                                        fontFace: "Arial",
-                                        breakLine: true,
-                                      });
-
-                                      // Answer slide
-                                      slide = pres.addSlide();
-                                      slide.background = { color: "FFFFFF" };
-
-                                      // Card number
-                                      slide.addText(`Card ${idx + 1}`, {
-                                        x: 0.5,
-                                        y: 0.25,
-                                        w: 2,
-                                        h: 0.5,
-                                        fontSize: 14,
-                                        color: "666666",
-                                        fontFace: "Arial",
-                                      });
-
-                                      // Difficulty badge
-                                      slide.addText(
-                                        fc.difficulty.toUpperCase(),
-                                        {
-                                          x: 0.5,
-                                          y: 0.5,
-                                          w: 1.5,
-                                          h: 0.4,
-                                          fontSize: 12,
-                                          color: "FFFFFF",
-                                          fill: {
-                                            color: getDifficultyColor(
-                                              fc.difficulty
-                                            ).replace("#", ""),
-                                          },
-                                          align: "center",
-                                          fontFace: "Arial",
-                                          bold: true,
-                                        }
-                                      );
-
-                                      // Category badge
-                                      slide.addText(fc.category, {
-                                        x: 2.2,
-                                        y: 0.5,
-                                        w: 2,
-                                        h: 0.4,
-                                        fontSize: 12,
-                                        color: "FFFFFF",
-                                        fill: { color: "2196F3" },
-                                        align: "center",
-                                        fontFace: "Arial",
-                                      });
-
-                                      // Answer label
-                                      slide.addText("Answer", {
-                                        x: 0.5,
-                                        y: 1.2,
-                                        w: "90%",
-                                        h: 0.6,
-                                        fontSize: 28,
-                                        color: "2196F3",
-                                        bold: true,
-                                        align: "center",
-                                        fontFace: "Arial",
-                                      });
-
-                                      // Answer text
-                                      slide.addText(fc.answer, {
-                                        x: 0.5,
-                                        y: 2,
-                                        w: "90%",
-                                        h: 2,
-                                        fontSize: 20,
-                                        color: "363636",
-                                        align: "center",
-                                        fontFace: "Arial",
-                                        breakLine: true,
-                                      });
-                                    });
-
-                                    // Save the presentation
-                                    await pres.writeFile({
-                                      fileName: `${
-                                        card.title || "flashcards"
-                                      }.pptx`,
-                                    });
-                                  } catch (error) {
-                                    console.error(
-                                      "Error generating PPTX:",
-                                      error
-                                    );
-                                  }
-                                }}
-                                sx={{
-                                  bgcolor: theme.palette.background.paper,
-                                  boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                                  color: theme.palette.primary.main,
-                                  "&:hover": {
-                                    bgcolor: theme.palette.primary.light,
-                                    color: "#fff",
-                                  },
-                                }}
-                              >
-                                <DownloadIcon fontSize="small" />
-                              </IconButton>
-                            </>
-                          ) : (
-                            <IconButton
-                              size="small"
-                              sx={{
-                                bgcolor: theme.palette.background.paper,
-                                boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                                color: theme.palette.primary.main,
-                                "&:hover": {
-                                  bgcolor: theme.palette.primary.light,
-                                  color: "#fff",
-                                },
-                              }}
-                              onClick={() => handleEditSummaryCard(card.id)}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          )}
                           <IconButton
                             size="small"
+                            onClick={() => {
+                              navigator.clipboard.writeText(card.content);
+                              setShowCopyAlert(true);
+                            }}
+                            sx={{
+                              bgcolor: theme.palette.background.paper,
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                              color: theme.palette.primary.main,
+                              "&:hover": {
+                                bgcolor: theme.palette.primary.light,
+                                color: "#fff",
+                              },
+                            }}
+                          >
+                            <ContentCopyIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleEditSummaryCard(card.id)}
+                            sx={{
+                              bgcolor: theme.palette.background.paper,
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                              color: theme.palette.primary.main,
+                              "&:hover": {
+                                bgcolor: theme.palette.primary.light,
+                                color: "#fff",
+                              },
+                            }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDeleteSummaryCard(card.id)}
                             sx={{
                               bgcolor: theme.palette.background.paper,
                               boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
@@ -3667,7 +3448,6 @@ ${fullTranscript}`;
                                 color: "#fff",
                               },
                             }}
-                            onClick={() => handleDeleteSummaryCard(card.id)}
                           >
                             <DeleteIcon fontSize="small" />
                           </IconButton>
@@ -3676,6 +3456,318 @@ ${fullTranscript}`;
                     )}
                   </Paper>
                 ))}
+
+              {/* Flashcard Sets */}
+              {flashcardSets.map((set) => (
+                <Paper
+                  key={set.id}
+                  elevation={0}
+                  sx={{
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    p: 2,
+                    bgcolor: theme.palette.background.paper,
+                    width: "100%",
+                    overflowY: "auto",
+                    pr: 1,
+                    "&::-webkit-scrollbar": {
+                      width: "6px",
+                    },
+                    "&::-webkit-scrollbar-track": {
+                      background:
+                        theme.palette.mode === "light" ? "#F3F4F6" : "#2a2a3a",
+                      borderRadius: "3px",
+                    },
+                    "&::-webkit-scrollbar-thumb": {
+                      background:
+                        theme.palette.mode === "light" ? "#D1D5DB" : "#4a4a5a",
+                      borderRadius: "3px",
+                      "&:hover": {
+                        background:
+                          theme.palette.mode === "light"
+                            ? "#9CA3AF"
+                            : "#5a5a6a",
+                      },
+                    },
+                  }}
+                >
+                  <Box
+                    sx={{
+                      padding: "0.1rem 0.5rem 0.1rem 0.5rem",
+                      position: "relative",
+                    }}
+                  >
+                    <Typography
+                      variant="subtitle1"
+                      sx={{
+                        fontWeight: "bold",
+                        mb: 2,
+                        color: theme.palette.primary.main,
+                      }}
+                    >
+                      {set.title}
+                    </Typography>
+
+                    {/* Render flashcard carousel */}
+                    <FlashcardCarousel
+                      cards={set.flashcards}
+                      title={set.title}
+                    />
+
+                    {/* Flashcard Action Buttons */}
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        bottom: 10,
+                        right: 10,
+                        display: "flex",
+                        gap: 1,
+                        mt: 3,
+                      }}
+                    >
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          // Copy all flashcards to clipboard
+                          const flashcardsText = set.flashcards
+                            ?.map(
+                              (fc) =>
+                                `Question: ${fc.question}\nAnswer: ${fc.answer}\nDifficulty: ${fc.difficulty}\nCategory: ${fc.category}\n`
+                            )
+                            .join("\n");
+                          navigator.clipboard.writeText(flashcardsText || "");
+                          setShowCopyAlert(true);
+                        }}
+                        sx={{
+                          bgcolor: theme.palette.background.paper,
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                          color: theme.palette.primary.main,
+                          "&:hover": {
+                            bgcolor: theme.palette.primary.light,
+                            color: "#fff",
+                          },
+                        }}
+                      >
+                        <ContentCopyIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={async () => {
+                          try {
+                            // Create a new presentation
+                            const pres = new pptxgen();
+
+                            // Set presentation properties
+                            pres.layout = "LAYOUT_16x9";
+                            pres.author = "NoteGPT";
+                            pres.title = set.title || "Flash Cards";
+
+                            // Add title slide
+                            let slide = pres.addSlide();
+                            slide.background = { color: "FFFFFF" };
+                            slide.addText(set.title || "Flash Cards", {
+                              x: 0.5,
+                              y: 1.5,
+                              w: "90%",
+                              h: 1.5,
+                              fontSize: 44,
+                              color: "363636",
+                              bold: true,
+                              align: "center",
+                              fontFace: "Arial",
+                            });
+
+                            // Add each flashcard
+                            set.flashcards?.forEach((fc, idx) => {
+                              // Question slide
+                              slide = pres.addSlide();
+                              slide.background = { color: "FFFFFF" };
+
+                              // Card number
+                              slide.addText(`Card ${idx + 1}`, {
+                                x: 0.5,
+                                y: 0.25,
+                                w: 2,
+                                h: 0.5,
+                                fontSize: 14,
+                                color: "666666",
+                                fontFace: "Arial",
+                              });
+
+                              // Difficulty badge
+                              slide.addText(fc.difficulty.toUpperCase(), {
+                                x: 0.5,
+                                y: 0.5,
+                                w: 1.5,
+                                h: 0.4,
+                                fontSize: 12,
+                                color: "FFFFFF",
+                                fill: {
+                                  color: getDifficultyColor(
+                                    fc.difficulty
+                                  ).replace("#", ""),
+                                },
+                                align: "center",
+                                fontFace: "Arial",
+                                bold: true,
+                              });
+
+                              // Category badge
+                              slide.addText(fc.category, {
+                                x: 2.2,
+                                y: 0.5,
+                                w: 2,
+                                h: 0.4,
+                                fontSize: 12,
+                                color: "FFFFFF",
+                                fill: { color: "2196F3" },
+                                align: "center",
+                                fontFace: "Arial",
+                              });
+
+                              // Question label
+                              slide.addText("Question", {
+                                x: 0.5,
+                                y: 1.2,
+                                w: "90%",
+                                h: 0.6,
+                                fontSize: 28,
+                                color: "363636",
+                                bold: true,
+                                align: "center",
+                                fontFace: "Arial",
+                              });
+
+                              // Question text
+                              slide.addText(fc.question, {
+                                x: 0.5,
+                                y: 2,
+                                w: "90%",
+                                h: 2,
+                                fontSize: 20,
+                                color: "363636",
+                                align: "center",
+                                fontFace: "Arial",
+                                breakLine: true,
+                              });
+
+                              // Answer slide
+                              slide = pres.addSlide();
+                              slide.background = { color: "FFFFFF" };
+
+                              // Card number
+                              slide.addText(`Card ${idx + 1}`, {
+                                x: 0.5,
+                                y: 0.25,
+                                w: 2,
+                                h: 0.5,
+                                fontSize: 14,
+                                color: "666666",
+                                fontFace: "Arial",
+                              });
+
+                              // Difficulty badge
+                              slide.addText(fc.difficulty.toUpperCase(), {
+                                x: 0.5,
+                                y: 0.5,
+                                w: 1.5,
+                                h: 0.4,
+                                fontSize: 12,
+                                color: "FFFFFF",
+                                fill: {
+                                  color: getDifficultyColor(
+                                    fc.difficulty
+                                  ).replace("#", ""),
+                                },
+                                align: "center",
+                                fontFace: "Arial",
+                                bold: true,
+                              });
+
+                              // Category badge
+                              slide.addText(fc.category, {
+                                x: 2.2,
+                                y: 0.5,
+                                w: 2,
+                                h: 0.4,
+                                fontSize: 12,
+                                color: "FFFFFF",
+                                fill: { color: "2196F3" },
+                                align: "center",
+                                fontFace: "Arial",
+                              });
+
+                              // Answer label
+                              slide.addText("Answer", {
+                                x: 0.5,
+                                y: 1.2,
+                                w: "90%",
+                                h: 0.6,
+                                fontSize: 28,
+                                color: "2196F3",
+                                bold: true,
+                                align: "center",
+                                fontFace: "Arial",
+                              });
+
+                              // Answer text
+                              slide.addText(fc.answer, {
+                                x: 0.5,
+                                y: 2,
+                                w: "90%",
+                                h: 2,
+                                fontSize: 20,
+                                color: "363636",
+                                align: "center",
+                                fontFace: "Arial",
+                                breakLine: true,
+                              });
+                            });
+
+                            // Save the presentation
+                            await pres.writeFile({
+                              fileName: `${set.title || "flashcards"}.pptx`,
+                            });
+                          } catch (error) {
+                            console.error("Error creating PPTX:", error);
+                          }
+                        }}
+                        sx={{
+                          bgcolor: theme.palette.background.paper,
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                          color: theme.palette.primary.main,
+                          "&:hover": {
+                            bgcolor: theme.palette.primary.light,
+                            color: "#fff",
+                          },
+                        }}
+                      >
+                        <DownloadIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          // Delete flashcard set
+                          setFlashcardSets((prevSets) =>
+                            prevSets.filter((s) => s.id !== set.id)
+                          );
+                        }}
+                        sx={{
+                          bgcolor: theme.palette.background.paper,
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                          color: theme.palette.error.main,
+                          "&:hover": {
+                            bgcolor: theme.palette.error.light,
+                            color: "#fff",
+                          },
+                        }}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  </Box>
+                </Paper>
+              ))}
 
               {/* Show loading indicator for additional summaries */}
               {isSummarizing &&
