@@ -995,7 +995,6 @@ export default function VideoDetailsPage() {
             const currentTime = playerRef.current.getCurrentTime();
             if (!isNaN(currentTime)) {
               setCurrentVideoTime(currentTime);
-              console.log("Updated time:", currentTime);
             }
           } catch (e) {
             console.error("Error getting current time:", e);
