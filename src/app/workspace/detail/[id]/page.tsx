@@ -749,10 +749,8 @@ export default function VideoDetailsPage() {
         // Also set the translated segments for use later
         setTranslatedSegments(segments);
 
-        // Mark transcript as loaded
-        transcriptLoadedRef.current = true;
-
-        // We're done, no need to call the API
+        // We're setting transcriptLoading to false, but NOT marking transcript as fully loaded yet
+        // This allows the player to recalculate segments with the correct duration
         setTranscriptLoading(false);
         return;
       }
@@ -1206,11 +1204,7 @@ export default function VideoDetailsPage() {
     console.log("Running duration effect with duration:", videoDuration);
 
     // Only recreate segments if we have both duration and segments
-    if (
-      videoDuration > 0 &&
-      transcriptSegments.length > 0 &&
-      !transcriptLoadedRef.current
-    ) {
+    if (videoDuration > 0 && transcriptSegments.length > 0) {
       // Don't recreate segments if they're just placeholder error messages
       const isErrorMessage =
         transcriptSegments[0].text.includes("No transcript") ||
@@ -1237,7 +1231,7 @@ export default function VideoDetailsPage() {
         setTranscriptSegments(updatedSegments);
         setTranslatedSegments(updatedSegments);
 
-        // Mark transcript as loaded to prevent multiple recreations
+        // Now we can mark transcript as fully loaded
         transcriptLoadedRef.current = true;
       }
     }
