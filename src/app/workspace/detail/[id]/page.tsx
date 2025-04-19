@@ -383,26 +383,7 @@ const FlashcardCarousel: React.FC<FlashcardCarouselProps> = ({
 
   return (
     <Box sx={{ position: "relative", width: "100%", pt: 1 }}>
-      {/* New styled AI Flash Cards title */}
-      <Box
-        sx={{
-          display: "inline-block",
-          fontSize: "14px",
-          height: "30px",
-          lineHeight: "28px",
-          color: "#2e83fb",
-          fontWeight: "bold",
-          borderRadius: "var(--base-card-border-radius, 8px)",
-          backgroundColor:
-            "var(--base-tag-background-color, rgba(46, 131, 251, 0.1))",
-          borderColor: "var(--base-tag-border-color, rgba(46, 131, 251, 0.3))",
-          border: "1px solid rgba(46, 131, 251, 0.3)",
-          padding: "0 12px",
-          marginBottom: 2,
-        }}
-      >
-        AI Flash Cards
-      </Box>
+      {/* Remove the AI Flash Cards title from here */}
 
       <Typography
         variant="body2"
@@ -429,6 +410,7 @@ const FlashcardCarousel: React.FC<FlashcardCarouselProps> = ({
           justifyContent: "center",
           mt: 3,
           gap: 2,
+          marginBottom: 3, // Add bottom margin for the title below
         }}
       >
         <IconButton
@@ -466,6 +448,29 @@ const FlashcardCarousel: React.FC<FlashcardCarouselProps> = ({
         >
           <ArrowForwardIosIcon fontSize="small" />
         </IconButton>
+      </Box>
+
+      {/* Move the AI Flash Cards title to here (bottom left) */}
+      <Box
+        sx={{
+          display: "inline-block",
+          fontSize: "14px",
+          height: "30px",
+          lineHeight: "28px",
+          color: "#2e83fb",
+          fontWeight: "bold",
+          borderRadius: "var(--base-card-border-radius, 8px)",
+          backgroundColor:
+            "var(--base-tag-background-color, rgba(46, 131, 251, 0.1))",
+          borderColor: "var(--base-tag-border-color, rgba(46, 131, 251, 0.3))",
+          border: "1px solid rgba(46, 131, 251, 0.3)",
+          padding: "0 12px",
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+        }}
+      >
+        AI Flash Cards
       </Box>
     </Box>
   );
