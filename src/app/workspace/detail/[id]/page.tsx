@@ -592,112 +592,105 @@ export default function VideoDetailsPage() {
 
   // Function to load stored content from database
   const loadStoredContent = async (videoId: string) => {
-    // Check if content has already been loaded
-    if (contentLoadedRef.current) {
-      console.log("Content already loaded, skipping database fetch");
-      return;
-    }
-
     try {
-      // Load summaries from database using the API service
+      // Fetch summaries from database
       const summaries = await dbService.summaries.getByVideoId(videoId);
+      console.log("Loaded summaries:", summaries);
 
-      // Load flashcard sets from database using the API service
+      // Fetch flashcard sets from database
       const flashcardSets = await dbService.flashcards.getSetsByVideoId(
         videoId
       );
+      console.log("Loaded flashcard sets:", flashcardSets);
 
-      if (summaries.length > 0 || flashcardSets.length > 0) {
-        console.log("Found stored content:", { summaries, flashcardSets });
+      // Track which card types we've already processed during this load
+      const processedCardTypes = new Set<string>();
 
-        // Mark content as loaded to prevent further fetches
-        contentLoadedRef.current = true;
+      // Process summaries
+      summaries.forEach((summary) => {
+        // Skip if we already have a card of this type
+        if (summaryCards.some((card) => card.type === summary.type)) {
+          return;
+        }
 
-        // Make sure loading state is reset when we have content
-        setIsSummarizing(false);
+        // Mark as processed
+        processedCardTypes.add(summary.type);
 
-        // Process summaries
-        summaries.forEach((summary) => {
-          if (summary.type === "default") {
-            // For default summary, update the main content
-            setMarkdownContent(summary.content);
+        if (summary.type === "default") {
+          // For default summary, update the main content
+          setMarkdownContent(summary.content);
 
-            // Parse the result to separate sections
-            const sections = parseSummaryResponse(summary.content);
+          // Parse the result to separate sections
+          const sections = parseSummaryResponse(summary.content);
 
-            // Update state
-            setSummaryContent(sections.summary);
-            setKeyInsightsContent(sections.keyInsights);
-            setHighlightsContent(sections.highlights);
-            setConclusionContent(sections.conclusion);
+          // Update state
+          setSummaryContent(sections.summary);
+          setKeyInsightsContent(sections.keyInsights);
+          setHighlightsContent(sections.highlights);
+          setConclusionContent(sections.conclusion);
 
-            // Add to summaryCards if not already there
-            if (!summaryCards.some((card) => card.type === "default")) {
-              setSummaryCards((prevCards) => [
+          // Add to summaryCards if not already there
+          if (!summaryCards.some((card) => card.type === "default")) {
+            setSummaryCards((prevCards) => [
+              {
+                id: `summary-${summary.id}`,
+                title: summary.title,
+                content: summary.content,
+                type: "default",
+              },
+              ...prevCards,
+            ]);
+          }
+        } else {
+          // For non-default templates, add a card if not already present
+          setSummaryCards((prevCards) => {
+            // Check if this summary type already exists in the cards
+            if (!prevCards.some((card) => card.type === summary.type)) {
+              return [
+                ...prevCards,
                 {
                   id: `summary-${summary.id}`,
                   title: summary.title,
                   content: summary.content,
-                  type: "default",
+                  type: summary.type,
                 },
-                ...prevCards,
-              ]);
+              ];
             }
-          } else {
-            // For non-default templates, add a card
-            setSummaryCards((prevCards) => {
-              // Check if this summary type already exists in the cards
-              if (!prevCards.some((card) => card.type === summary.type)) {
-                return [
-                  ...prevCards,
-                  {
-                    id: `summary-${summary.id}`,
-                    title: summary.title,
-                    content: summary.content,
-                    type: summary.type,
-                  },
-                ];
-              }
-              return prevCards;
-            });
-          }
-        });
+            return prevCards;
+          });
+        }
+      });
 
-        // Process flashcard sets - now using separate state
-        flashcardSets.forEach((set) => {
-          if (set.flashcards && set.flashcards.length > 0) {
-            // Convert Flashcard[] to FlashCardProps[]
-            const flashcardProps = set.flashcards.map((card) => ({
-              question: card.question,
-              answer: card.answer,
-              difficulty: card.difficulty || "medium",
-              category: card.category || "General",
-            }));
+      // Process flashcard sets
+      flashcardSets.forEach((set) => {
+        // Skip if we already have this flashcard set loaded
+        if (summaryCards.some((card) => card.id === `flashcards-${set.id}`)) {
+          return;
+        }
 
-            // Add to flashcardSets if not already there
-            setFlashcardSets((prevSets) => {
-              // Check if this flashcard set already exists
-              if (
-                !prevSets.some((existingSet) => existingSet.id === `${set.id}`)
-              ) {
-                return [
-                  ...prevSets,
-                  {
-                    id: `${set.id}`,
-                    title: set.title,
-                    content: JSON.stringify(flashcardProps),
-                    flashcards: flashcardProps,
-                  },
-                ];
-              }
-              return prevSets;
-            });
-          }
-        });
-      }
+        // Convert to the format expected by the UI
+        const flashcardProps =
+          set.flashcards?.map((card) => ({
+            question: card.question,
+            answer: card.answer,
+            difficulty: card.difficulty || "medium",
+            category: card.category || "General",
+          })) || [];
+
+        // Add to summaryCards
+        setSummaryCards((prevCards) => [
+          ...prevCards,
+          {
+            id: `flashcards-${set.id}`,
+            title: set.title,
+            content: JSON.stringify(flashcardProps),
+            type: "quiz-flashcards",
+            flashcards: flashcardProps,
+          },
+        ]);
+      });
     } catch (error) {
       console.error("Error loading stored content:", error);
-      // Continue without stored content
     }
   };
 
@@ -1495,13 +1488,23 @@ export default function VideoDetailsPage() {
       let existingFlashcards = null;
 
       try {
-        // Check for existing summary
-        if (templateType !== "quiz-flashcards") {
+        // Skip database check for default summaries if we want to create another type
+        // This prevents unnecessary regeneration of the default summary
+        if (templateType !== "default") {
+          // Only check for existing summaries of the specific type we're generating
           existingSummary = await dbService.summaries.getByType(
             videoId,
             templateType
           );
-        } else {
+        } else if (templateType === "default") {
+          // Only check for default summary if we're explicitly generating a default summary
+          existingSummary = await dbService.summaries.getByType(
+            videoId,
+            templateType
+          );
+        }
+
+        if (templateType === "quiz-flashcards") {
           // Check for existing flashcards
           const existingSets = await dbService.flashcards.getSetsByVideoId(
             videoId
@@ -1548,17 +1551,40 @@ export default function VideoDetailsPage() {
             ]);
           }
         } else {
-          // For non-default templates, add a new card if not already there
-          if (!summaryCards.some((card) => card.type === templateType)) {
-            setSummaryCards((prevCards) => [
-              ...prevCards,
-              {
-                id: `summary-${existingSummary.id}`,
-                title: existingSummary.title,
-                content: existingSummary.content,
-                type: templateType,
-              },
-            ]);
+          // For non-default templates, add a new card only if not already there
+          const existingCardIndex = summaryCards.findIndex(
+            (card) => card.type === templateType
+          );
+
+          if (existingCardIndex === -1) {
+            // Create a card ID for later scrolling reference
+            const newCardId = `summary-${existingSummary.id}`;
+
+            // Only add if this type of card doesn't exist yet
+            setSummaryCards((prevCards) => {
+              const newCards = [
+                ...prevCards,
+                {
+                  id: newCardId,
+                  title: existingSummary.title,
+                  content: existingSummary.content,
+                  type: templateType,
+                },
+              ];
+
+              // Scroll to the new card after rendering
+              setTimeout(() => {
+                const cardElement = document.getElementById(newCardId);
+                if (cardElement) {
+                  cardElement.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  });
+                }
+              }, 100);
+
+              return newCards;
+            });
           }
         }
 
@@ -1582,22 +1608,40 @@ export default function VideoDetailsPage() {
             category: card.category || "General",
           })) || [];
 
-        // Add to summaryCards if not already there
-        if (
-          !summaryCards.some(
-            (card) => card.id === `flashcards-${existingFlashcards.id}`
-          )
-        ) {
-          setSummaryCards((prevCards) => [
-            ...prevCards,
-            {
-              id: `flashcards-${existingFlashcards.id}`,
-              title: existingFlashcards.title,
-              content: JSON.stringify(flashcardProps),
-              type: "quiz-flashcards",
-              flashcards: flashcardProps,
-            },
-          ]);
+        // Add to summaryCards only if not already there
+        const existingCardIndex = summaryCards.findIndex(
+          (card) => card.id === `flashcards-${existingFlashcards.id}`
+        );
+
+        if (existingCardIndex === -1) {
+          // Create a card ID for later scrolling reference
+          const newCardId = `flashcards-${existingFlashcards.id}`;
+
+          setSummaryCards((prevCards) => {
+            const newCards = [
+              ...prevCards,
+              {
+                id: newCardId,
+                title: existingFlashcards.title,
+                content: JSON.stringify(flashcardProps),
+                type: "quiz-flashcards",
+                flashcards: flashcardProps,
+              },
+            ];
+
+            // Scroll to the new card after rendering
+            setTimeout(() => {
+              const cardElement = document.getElementById(newCardId);
+              if (cardElement) {
+                cardElement.scrollIntoView({
+                  behavior: "smooth",
+                  block: "start",
+                });
+              }
+            }, 100);
+
+            return newCards;
+          });
         }
 
         setIsSummarizing(false);
@@ -1606,23 +1650,30 @@ export default function VideoDetailsPage() {
 
       // No existing summary or flashcards found, generate a new one
       let result;
+      try {
+        // Generate new content using the OpenAI API
+        if (templateType === "quiz-flashcards") {
+          setIsGeneratingFlashcards(true);
+        }
 
-      // Special handling for quiz-flashcards to ensure we get proper JSON
-      if (templateType === "quiz-flashcards") {
-        // Use a specific structure that encourages JSON generation
-        const quizPrompt = `Create an interactive quiz with flashcards based on this content. Generate 10-15 question-answer pairs that test understanding of the key concepts, facts, and insights. Return ONLY a valid JSON array with objects having this structure: { "question": "...", "answer": "...", "difficulty": "(easy|medium|hard)", "category": "..." }. Do NOT include markdown formatting or code blocks, just the raw JSON array: 
-${fullTranscript}`;
+        if (prompt) {
+          // Using custom prompt
+          result = await summarizeTranscript(fullTranscript, prompt);
+        } else {
+          // Using template
+          result = await summarizeTranscript(fullTranscript, {
+            templateType: templateType,
+          });
+        }
 
-        result = await summarizeTranscript(fullTranscript, {
-          templateType: templateType,
-          customPrompt: quizPrompt,
-        });
-      } else {
-        // For regular summaries, use the template or custom prompt
-        result = await summarizeTranscript(fullTranscript, {
-          templateType: templateType,
-          customPrompt: prompt,
-        });
+        console.log(`Generated ${templateType} result:`, result);
+      } catch (apiError) {
+        console.error("API Error:", apiError);
+        setIsSummarizing(false);
+        if (templateType === "quiz-flashcards") {
+          setIsGeneratingFlashcards(false);
+        }
+        throw apiError;
       }
 
       // Save the result to the database
@@ -1663,59 +1714,106 @@ ${fullTranscript}`;
               ...prevCards,
             ]);
           }
-        } else if (templateType === "quiz-flashcards") {
-          // Parse the JSON from the result
-          const flashcards = parseSummaryResponse(result, templateType);
-          console.log("Parsed flashcards:", flashcards);
-
-          // Save flashcards to database
-          const flashcardTitle = title || "AI Flash Cards";
-          const savedFlashcardSet = await dbService.flashcards.saveSet({
-            videoId: videoId,
-            videoTitle: videoTitle,
-            videoUrl: videoUrl,
-            title: flashcardTitle,
-            flashcards: flashcards.map((card) => ({
-              question: card.question,
-              answer: card.answer,
-              difficulty: card.difficulty || "medium",
-              category: card.category || "General",
-            })),
-          });
-
-          // Add to UI
-          setSummaryCards((prevCards) => [
-            ...prevCards,
-            {
-              id: `flashcards-${savedFlashcardSet?.id || Date.now()}`,
-              title: flashcardTitle,
-              content: result,
-              type: templateType,
-              flashcards: flashcards,
-            },
-          ]);
         } else {
-          // Regular non-default template
-          // Save to database
-          const savedSummary = await dbService.summaries.save({
-            videoId: videoId,
-            videoTitle: videoTitle,
-            videoUrl: videoUrl,
-            summaryType: templateType,
-            summaryTitle: title || "Custom Summary",
-            content: result,
-          });
+          // For non-default templates, scroll to the bottom of the content area first
+          // This ensures we see the new card being added
+          const contentArea = document.querySelector(".summary-content-area");
+          if (contentArea) {
+            contentArea.scrollTop = contentArea.scrollHeight;
+          }
 
-          // Add to UI
-          setSummaryCards((prevCards) => [
-            ...prevCards,
-            {
-              id: `summary-${savedSummary?.id || Date.now()}`,
-              title: title || "Custom Summary",
+          if (templateType === "quiz-flashcards") {
+            // Parse the JSON from the result
+            const flashcards = parseSummaryResponse(result, templateType);
+            console.log("Parsed flashcards:", flashcards);
+
+            // Save flashcards to database
+            const flashcardTitle = title || "AI Flash Cards";
+            const savedFlashcardSet = await dbService.flashcards.saveSet({
+              videoId: videoId,
+              videoTitle: videoTitle,
+              videoUrl: videoUrl,
+              title: flashcardTitle,
+              flashcards: flashcards.map((card) => ({
+                question: card.question,
+                answer: card.answer,
+                difficulty: card.difficulty || "medium",
+                category: card.category || "General",
+              })),
+            });
+
+            // Create a card ID for later scrolling reference
+            const newCardId = `flashcards-${
+              savedFlashcardSet?.id || Date.now()
+            }`;
+
+            // Simply add to the end of existing cards without reloading or touching default summary
+            setSummaryCards((prevCards) => {
+              const newCards = [
+                ...prevCards,
+                {
+                  id: newCardId,
+                  title: flashcardTitle,
+                  content: result,
+                  type: templateType,
+                  flashcards: flashcards,
+                },
+              ];
+
+              // Scroll to the new card after rendering
+              setTimeout(() => {
+                const cardElement = document.getElementById(newCardId);
+                if (cardElement) {
+                  cardElement.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  });
+                }
+              }, 100);
+
+              return newCards;
+            });
+          } else {
+            // Regular non-default template
+            // Save to database
+            const savedSummary = await dbService.summaries.save({
+              videoId: videoId,
+              videoTitle: videoTitle,
+              videoUrl: videoUrl,
+              summaryType: templateType,
+              summaryTitle: title || "Custom Summary",
               content: result,
-              type: templateType,
-            },
-          ]);
+            });
+
+            // Create a card ID for later scrolling reference
+            const newCardId = `summary-${savedSummary?.id || Date.now()}`;
+
+            // Simply add to the end of existing cards without reloading or affecting default summary
+            setSummaryCards((prevCards) => {
+              const newCards = [
+                ...prevCards,
+                {
+                  id: newCardId,
+                  title: title || "Custom Summary",
+                  content: result,
+                  type: templateType,
+                },
+              ];
+
+              // Scroll to the new card after rendering
+              setTimeout(() => {
+                const cardElement = document.getElementById(newCardId);
+                if (cardElement) {
+                  cardElement.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  });
+                }
+              }, 100);
+
+              return newCards;
+            });
+          }
         }
       } catch (dbError) {
         console.error("Error saving to database:", dbError);
@@ -1738,28 +1836,58 @@ ${fullTranscript}`;
           }
         } else if (templateType === "quiz-flashcards") {
           const flashcards = parseSummaryResponse(result, templateType);
-          const cardId = `summary-${Date.now()}`;
-          setSummaryCards((prevCards) => [
-            ...prevCards,
-            {
-              id: cardId,
-              title: title || "AI Flash Cards",
-              content: result,
-              type: templateType,
-              flashcards: flashcards,
-            },
-          ]);
+          const newCardId = `flashcards-${Date.now()}`;
+          setSummaryCards((prevCards) => {
+            const newCards = [
+              ...prevCards,
+              {
+                id: newCardId,
+                title: title || "AI Flash Cards",
+                content: result,
+                type: templateType,
+                flashcards: flashcards,
+              },
+            ];
+
+            // Scroll to the new card after rendering
+            setTimeout(() => {
+              const cardElement = document.getElementById(newCardId);
+              if (cardElement) {
+                cardElement.scrollIntoView({
+                  behavior: "smooth",
+                  block: "start",
+                });
+              }
+            }, 100);
+
+            return newCards;
+          });
         } else {
-          const cardId = `summary-${Date.now()}`;
-          setSummaryCards((prevCards) => [
-            ...prevCards,
-            {
-              id: cardId,
-              title: title || "Custom Summary",
-              content: result,
-              type: templateType,
-            },
-          ]);
+          const newCardId = `summary-${Date.now()}`;
+          setSummaryCards((prevCards) => {
+            const newCards = [
+              ...prevCards,
+              {
+                id: newCardId,
+                title: title || "Custom Summary",
+                content: result,
+                type: templateType,
+              },
+            ];
+
+            // Scroll to the new card after rendering
+            setTimeout(() => {
+              const cardElement = document.getElementById(newCardId);
+              if (cardElement) {
+                cardElement.scrollIntoView({
+                  behavior: "smooth",
+                  block: "start",
+                });
+              }
+            }, 100);
+
+            return newCards;
+          });
         }
       }
     } catch (error) {
@@ -1772,6 +1900,7 @@ ${fullTranscript}`;
       );
     } finally {
       setIsSummarizing(false);
+      setIsGeneratingFlashcards(false);
     }
   };
 
@@ -3166,10 +3295,14 @@ ${fullTranscript}`;
             </Box>
 
             {/* Summary and Highlights */}
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <Box
+              sx={{ display: "flex", flexDirection: "column", gap: 3 }}
+              className="summary-content-area"
+            >
               {/* Default Summary Card - always show this one first */}
               <Paper
                 elevation={0}
+                id="default-summary-card"
                 sx={{
                   border: `1px solid ${theme.palette.divider}`,
                   borderRadius: 2,
@@ -3227,7 +3360,6 @@ ${fullTranscript}`;
                         display: "block",
                         marginTop: "1em",
                         marginBottom: "0.75em",
-                        borderBottom: `1px solid ${theme.palette.divider}`,
                         paddingBottom: "0.25em",
                       },
                       "& h1, & h2, & h3, & h4, & h5, & h6": {
@@ -3349,6 +3481,7 @@ ${fullTranscript}`;
                 .map((card) => (
                   <Paper
                     key={card.id}
+                    id={card.id}
                     elevation={0}
                     sx={{
                       border: `1px solid ${theme.palette.divider}`,
@@ -3444,7 +3577,6 @@ ${fullTranscript}`;
                             display: "block",
                             marginTop: "1em",
                             marginBottom: "0.75em",
-                            borderBottom: `1px solid ${theme.palette.divider}`,
                             paddingBottom: "0.25em",
                           },
                           "& h1, & h2, & h3, & h4, & h5, & h6": {
