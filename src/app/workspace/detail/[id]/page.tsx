@@ -1058,11 +1058,16 @@ export default function VideoDetailsPage() {
   // Add a useEffect to automatically generate summary when transcript is loaded
   useEffect(() => {
     // Only try to summarize once we have transcript segments and they're not loading
-    if (translatedSegments.length > 0 && !transcriptLoading && !isSummarizing && !markdownContent) {
+    // and only if we haven't generated any summaries yet
+    if (translatedSegments.length > 0 && 
+        !transcriptLoading && 
+        !isSummarizing && 
+        !markdownContent && 
+        summaryCards.length === 0) {
       // Automatically generate the summary
       handleSummarize();
     }
-  }, [translatedSegments, transcriptLoading, isSummarizing, markdownContent]);
+  }, [translatedSegments, transcriptLoading, isSummarizing, markdownContent, summaryCards.length]);
 
   // Handle summary dropdown menu
   const handleSummaryMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -2326,15 +2331,17 @@ ${fullTranscript}`;
                 },
               }}
             >
-                {isSummarizing && !summaryCards.some(card => card.type !== 'default') ? (
+                {isSummarizing && !summaryCards.some(card => card.type !== 'default') && !markdownContent ? (
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                     <CircularProgress size={40} sx={{ mb: 2 }} />
                     <Typography variant="body1">Generating summary...</Typography>
                   </Box>
                 ) : markdownContent ? (
                   <Box sx={{ 
-                    padding: '0.1rem 0.5rem 0.1rem 0.5rem', // Less padding on top, keep sides and bottom
+                    padding: '0.1rem 0.5rem 0.1rem 0.5rem',
                     position: 'relative',
+                    minHeight: '200px',
+                    paddingBottom: '60px',
                     '& p': { margin: '0.75em 0' },
                     '& ul': { paddingLeft: '1.5em', margin: '0.75em 0' },
                     '& li': { margin: '0.5em 0', paddingLeft: '0.5em' },
@@ -2364,7 +2371,11 @@ ${fullTranscript}`;
                         right: 10,
                         display: 'flex',
                         gap: 1,
-                        mt: 3 // Add top margin
+                        zIndex: 1,
+                        backgroundColor: 'background.paper',
+                        padding: '8px',
+                        borderRadius: '4px',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                       }}
                     >
                       <IconButton 
@@ -2401,6 +2412,27 @@ ${fullTranscript}`;
                       >
                         <DeleteIcon fontSize="small" />
                       </IconButton>
+                    </Box>
+                    
+                    {/* Card Type Label */}
+                    <Box 
+                      sx={{
+                        position: 'absolute',
+                        bottom: 10,
+                        left: 10,
+                        zIndex: 1,
+                        padding: '0 12px',
+                        borderRadius: '4px',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                        fontSize: '14px',
+                        height: '30px',
+                        lineHeight: '28px',
+                        color: theme.palette.mode === 'light' ? '#2e83fb' : '#2e83fb',
+                        backgroundColor: theme.palette.mode === 'light' ? '#ecf5ff' : '#1e1e2d',
+                        border: `1px solid ${theme.palette.mode === 'light' ? '#d9ecff' : '#409eff'}`,
+                      }}
+                    >
+                      Default Summary
                     </Box>
                   </Box>
                 ) : (
@@ -2481,6 +2513,8 @@ ${fullTranscript}`;
                     <Box sx={{ 
                       padding: '0.1rem 0.5rem 0.1rem 0.5rem',
                       position: 'relative',
+                      minHeight: '200px',
+                      paddingBottom: '60px',
                       '& p': { margin: '0.75em 0' },
                       '& ul': { paddingLeft: '1.5em', margin: '0.75em 0' },
                       '& li': { margin: '0.5em 0', paddingLeft: '0.5em' },
@@ -2513,24 +2547,32 @@ ${fullTranscript}`;
                       
                       {card.type === 'quiz-flashcards' && card.flashcards ? (
                         // Render flashcard carousel for quiz cards
-                        <FlashcardCarousel 
-                          cards={card.flashcards} 
-                          title={card.title}
-                        />
+                        <Box sx={{ mb: 4 }}>
+                          <FlashcardCarousel 
+                            cards={card.flashcards} 
+                            title={card.title}
+                          />
+                        </Box>
                       ) : (
                         // Regular markdown content for other types
-                        <ReactMarkdown>{card.content}</ReactMarkdown>
+                        <Box sx={{ mb: 4 }}>
+                          <ReactMarkdown>{card.content}</ReactMarkdown>
+                        </Box>
                       )}
                       
                       {/* Action Buttons */}
                       <Box 
-                        sx={{
+                sx={{
                           position: 'absolute',
                           bottom: 10,
                           right: 10,
                           display: 'flex',
                           gap: 1,
-                          mt: 3
+                          zIndex: 1,
+                          backgroundColor: 'background.paper',
+                          padding: '8px',
+                          borderRadius: '4px',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                         }}
                       >
                         {card.type === 'quiz-flashcards' ? (
@@ -2762,6 +2804,27 @@ ${fullTranscript}`;
                         >
                           <DeleteIcon fontSize="small" />
                         </IconButton>
+                      </Box>
+                      
+                      {/* Card Type Label */}
+                      <Box 
+                        sx={{
+                          position: 'absolute',
+                          bottom: 10,
+                          left: 10,
+                          zIndex: 1,
+                          padding: '0 12px',
+                          borderRadius: '4px',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                          fontSize: '14px',
+                          height: '30px',
+                          lineHeight: '28px',
+                          color: theme.palette.mode === 'light' ? '#2e83fb' : '#2e83fb',
+                          backgroundColor: theme.palette.mode === 'light' ? '#ecf5ff' : '#1e1e2d',
+                          border: `1px solid ${theme.palette.mode === 'light' ? '#d9ecff' : '#409eff'}`,
+                        }}
+                      >
+                        {card.type === 'quiz-flashcards' ? 'AI Flash Cards' : card.title}
                       </Box>
                     </Box>
                   )}
