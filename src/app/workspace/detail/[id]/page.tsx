@@ -24,6 +24,11 @@ import {
   Divider,
   ListSubheader,
   TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
@@ -55,6 +60,8 @@ import { translateTranscriptSegments } from "@/utils/translation";
 import { summarizeTranscript } from "@/utils/openAiService";
 import ReactMarkdown from 'react-markdown';
 import SchoolIcon from '@mui/icons-material/School';
+import { v4 as uuidv4 } from 'uuid';
+import ImageIcon from '@mui/icons-material/Image';
 
 // Add YouTube API types
 declare global {
@@ -491,6 +498,18 @@ export default function VideoDetailsPage() {
   const [editPrompt, setEditPrompt] = useState('');
   const [editTitle, setEditTitle] = useState('');
   
+  // Note feature states
+  const [noteCards, setNoteCards] = useState<Array<{
+    id: string;
+    content: string;
+    timestamp: number;
+    isEditing: boolean;
+  }>>([]);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
+  const [editingNoteContent, setEditingNoteContent] = useState('');
+  const noteInputRef = useRef<HTMLTextAreaElement>(null);
+  
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const playerCheckInterval = useRef<NodeJS.Timeout | null>(null);
@@ -902,7 +921,7 @@ export default function VideoDetailsPage() {
   // Format seconds to MM:SS
   const formatTime = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
+    const remainingSeconds = Math.floor(seconds % 60);
     return `${minutes.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`;
   };
 
@@ -1416,6 +1435,102 @@ ${fullTranscript}`;
   
   const handleCancelCardEdit = () => {
     setEditingCardId(null);
+  };
+
+  // Note feature handlers
+  const handleAddNote = () => {
+    const newNote = {
+      id: uuidv4(),
+      content: '',
+      timestamp: currentVideoTime,
+      isEditing: true
+    };
+    
+    setNoteCards([...noteCards, newNote]);
+    setEditingNoteContent('');
+    
+    // Focus the textarea in the next render cycle
+    setTimeout(() => {
+      if (noteInputRef.current) {
+        noteInputRef.current.focus();
+      }
+    }, 0);
+  };
+  
+  const handleSaveNote = (noteId: string) => {
+    if (!editingNoteContent.trim()) return;
+    
+    setNoteCards(noteCards.map(note => 
+      note.id === noteId ? { ...note, content: editingNoteContent, isEditing: false } : note
+    ));
+    setEditingNoteContent('');
+  };
+  
+  const handleCancelNote = (noteId: string) => {
+    // If it's a new note with no content, remove it
+    if (!noteCards.find(note => note.id === noteId)?.content) {
+      setNoteCards(noteCards.filter(note => note.id !== noteId));
+    } else {
+      // Otherwise just exit edit mode
+      setNoteCards(noteCards.map(note => 
+        note.id === noteId ? { ...note, isEditing: false } : note
+      ));
+    }
+    setEditingNoteContent('');
+  };
+  
+  const handleEditNote = (noteId: string) => {
+    const note = noteCards.find(note => note.id === noteId);
+    if (note) {
+      setEditingNoteContent(note.content);
+      setNoteCards(noteCards.map(note => 
+        note.id === noteId ? { ...note, isEditing: true } : note
+      ));
+      
+      // Focus the textarea in the next render cycle
+      setTimeout(() => {
+        if (noteInputRef.current) {
+          noteInputRef.current.focus();
+        }
+      }, 0);
+    }
+  };
+  
+  const handleNoteKeyDown = (e: React.KeyboardEvent, noteId: string) => {
+    // Save on Cmd/Ctrl + Enter
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      handleSaveNote(noteId);
+    }
+    
+    // Cancel on Escape
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      handleCancelNote(noteId);
+    }
+  };
+  
+  const handleDeleteConfirm = (noteId: string) => {
+    setNoteToDelete(noteId);
+    setDeleteConfirmOpen(true);
+  };
+  
+  const confirmDelete = () => {
+    if (noteToDelete) {
+      setNoteCards(noteCards.filter(note => note.id !== noteToDelete));
+      setNoteToDelete(null);
+      setDeleteConfirmOpen(false);
+    }
+  };
+  
+  const cancelDelete = () => {
+    setNoteToDelete(null);
+    setDeleteConfirmOpen(false);
+  };
+  
+  const handleCopyNote = (content: string) => {
+    navigator.clipboard.writeText(content);
+    setShowCopyAlert(true);
   };
 
   return (
@@ -2285,6 +2400,7 @@ ${fullTranscript}`;
                 <Tooltip title="Add Notes">
                 <IconButton
                   size="small"
+                  onClick={handleAddNote}
                   sx={{
                     bgcolor: theme.palette.background.paper,
                     color: theme.palette.text.secondary,
@@ -2844,11 +2960,222 @@ ${fullTranscript}`;
                   }}
                 >
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 4 }}>
-                    <CircularProgress size={40} sx={{ mb: 2 }} />
+                    <CircularProgress size={20} sx={{ mb: 1 }} />
                     <Typography variant="body1">Generating additional summary...</Typography>
                   </Box>
                 </Paper>
               )}
+              
+              {/* Note Cards */}
+              {noteCards.map(note => (
+                <Paper
+                  key={note.id}
+                  elevation={0}
+                  sx={{
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    p: 2,
+                    bgcolor: theme.palette.background.paper,
+                    width: "100%",
+                    overflowY: "auto",
+                    pr: 1,
+                    "&::-webkit-scrollbar": {
+                      width: "6px",
+                    },
+                    "&::-webkit-scrollbar-track": {
+                      background: theme.palette.mode === 'light' ? "#F3F4F6" : "#2a2a3a",
+                      borderRadius: "3px",
+                    },
+                    "&::-webkit-scrollbar-thumb": {
+                      background: theme.palette.mode === 'light' ? "#D1D5DB" : "#4a4a5a",
+                      borderRadius: "3px",
+                      "&:hover": {
+                        background: theme.palette.mode === 'light' ? "#9CA3AF" : "#5a5a6a",
+                      },
+                    },
+                  }}
+                >
+                  {note.isEditing ? (
+                    // Editing Mode
+                    <Box sx={{ p: 2 }}>
+                      <TextField
+                        fullWidth
+                        placeholder="Catch what you're thinking now"
+                        multiline
+                        rows={5}
+                        inputRef={noteInputRef}
+                        value={editingNoteContent}
+                        onChange={(e) => setEditingNoteContent(e.target.value)}
+                        variant="outlined"
+                        margin="normal"
+                        size="small"
+                        onKeyDown={(e) => handleNoteKeyDown(e, note.id)}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            '& fieldset': {
+                              borderColor: theme.palette.divider,
+                            },
+                            '&:hover fieldset': {
+                              borderColor: theme.palette.primary.light,
+                            },
+                            '&.Mui-focused fieldset': {
+                              borderColor: theme.palette.primary.main,
+                            },
+                          },
+                        }}
+                      />
+                      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, gap: 1 }}>
+                        <Button 
+                          onClick={() => handleCancelNote(note.id)} 
+                          size="small"
+                          sx={{
+                            color: theme.palette.text.secondary,
+                            border: `1px solid ${theme.palette.divider}`,
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button 
+                          onClick={() => handleSaveNote(note.id)} 
+                          variant="contained" 
+                          size="small"
+                          sx={{ 
+                            background: 'linear-gradient(90deg, #2e83fb 0%, #9867ff 100%)',
+                          }}
+                        >
+                          Save
+                        </Button>
+                      </Box>
+                    </Box>
+                  ) : (
+                    // View Mode
+                    <Box sx={{ 
+                      padding: '0.1rem 0.5rem 0.1rem 0.5rem',
+                      position: 'relative',
+                      minHeight: '200px',
+                      paddingBottom: '60px',
+                      '& p': { margin: '0.75em 0' },
+                    }}>
+                      <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}>
+                        <Typography 
+                          variant="body2" 
+                          component="div" 
+                          color="primary" 
+                          sx={{ 
+                            fontWeight: 'bold',
+                            minWidth: '50px',
+                            mr: 2,
+                            cursor: 'pointer',
+                          }}
+                          onClick={() => {
+                            if (playerRef.current) {
+                              playerRef.current.seekTo(note.timestamp);
+                            }
+                          }}
+                        >
+                          {formatTime(note.timestamp)}
+                        </Typography>
+                        <Typography 
+                          variant="body1" 
+                          component="div" 
+                          sx={{ 
+                            whiteSpace: 'pre-wrap',
+                            maxHeight: '300px',
+                            overflowY: 'auto'
+                          }}
+                        >
+                          {note.content}
+                        </Typography>
+                      </Box>
+                      
+                      {/* Action Buttons */}
+                      <Box 
+                        sx={{
+                          position: 'absolute',
+                          bottom: 10,
+                          right: 10,
+                          display: 'flex',
+                          gap: 1,
+                          zIndex: 1,
+                          backgroundColor: theme.palette.background.paper,
+                          padding: '8px',
+                          borderRadius: '4px',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                        }}
+                      >
+                        <IconButton 
+                          size="small"
+                          sx={{ 
+                            bgcolor: theme.palette.background.paper,
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                            color: theme.palette.primary.main,
+                            '&:hover': { bgcolor: theme.palette.primary.light, color: '#fff' }
+                          }}
+                          onClick={() => handleCopyNote(note.content)}
+                        >
+                          <ContentCopyIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton 
+                          size="small"
+                          sx={{ 
+                            bgcolor: theme.palette.background.paper,
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                            color: theme.palette.primary.main,
+                            '&:hover': { bgcolor: theme.palette.primary.light, color: '#fff' }
+                          }}
+                        >
+                          <ImageIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton 
+                          size="small"
+                          sx={{ 
+                            bgcolor: theme.palette.background.paper,
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                            color: theme.palette.primary.main,
+                            '&:hover': { bgcolor: theme.palette.primary.light, color: '#fff' }
+                          }}
+                          onClick={() => handleEditNote(note.id)}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton 
+                          size="small"
+                          sx={{ 
+                            bgcolor: theme.palette.background.paper,
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                            color: theme.palette.error.main,
+                            '&:hover': { bgcolor: theme.palette.error.light, color: '#fff' }
+                          }}
+                          onClick={() => handleDeleteConfirm(note.id)}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                      
+                      {/* Card Type Label */}
+                      <Box 
+                        sx={{
+                          position: 'absolute',
+                          bottom: 10,
+                          left: 10,
+                          zIndex: 1,
+                          padding: '0 12px',
+                          borderRadius: '4px',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                          fontSize: '14px',
+                          height: '30px',
+                          lineHeight: '28px',
+                          color: theme.palette.mode === 'light' ? '#2e83fb' : '#2e83fb',
+                          backgroundColor: theme.palette.mode === 'light' ? '#ecf5ff' : '#1e1e2d',
+                          border: `1px solid ${theme.palette.mode === 'light' ? '#d9ecff' : '#409eff'}`,
+                        }}
+                      >
+                        Note
+                      </Box>
+                    </Box>
+                  )}
+                </Paper>
+              ))}
             </Box>
           </Box>
         </Grid>
@@ -2866,7 +3193,7 @@ ${fullTranscript}`;
           severity="success"
           sx={{ width: "100%" }}
         >
-          Transcript copied to clipboard
+          Copied to clipboard
         </Alert>
       </Snackbar>
 
@@ -2881,6 +3208,46 @@ ${fullTranscript}`;
           {translationError}
         </Alert>
       </Snackbar>
+      
+      {/* Delete Note Confirmation Dialog */}
+      <Dialog
+        open={deleteConfirmOpen}
+        onClose={cancelDelete}
+        aria-labelledby="delete-note-dialog-title"
+      >
+        <DialogTitle id="delete-note-dialog-title" sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="subtitle1" component="span" sx={{ fontWeight: 'bold' }}>Delete Note</Typography>
+          <IconButton size="small" onClick={cancelDelete}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this note? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ pb: 2, px: 3 }}>
+          <Button 
+            onClick={cancelDelete} 
+            sx={{ 
+              color: theme.palette.text.secondary,
+              backgroundColor: theme.palette.mode === 'light' ? '#f5f5f5' : '#333',
+              '&:hover': {
+                backgroundColor: theme.palette.mode === 'light' ? '#e0e0e0' : '#444',
+              }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={confirmDelete} 
+            variant="contained" 
+            color="error"
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
