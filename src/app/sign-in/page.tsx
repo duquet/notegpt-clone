@@ -1,14 +1,15 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useSignInWithEmailAndPassword } from "react-firebase-hooks/auth";
-import { auth } from "@/app/firebase/config";
+import { auth } from "@/utils/firebase";
 import {
   getRedirectResult,
   GoogleAuthProvider,
-  signInWithRedirect,
+  signInWithPopup,
 } from "firebase/auth";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Cookies from "js-cookie";
 
 const SignIn = () => {
   const [email, setEmail] = useState("");
@@ -17,48 +18,11 @@ const SignIn = () => {
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/";
 
   const [signInWithEmailAndPassword, user, loading, signInError] =
     useSignInWithEmailAndPassword(auth);
-
-  useEffect(() => {
-    const handleRedirectResult = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result?.user) {
-          console.log("Successfully signed in with Google");
-          setSuccess("Successfully signed in with Google! Redirecting...");
-          sessionStorage.setItem("user", true);
-          setTimeout(() => {
-            router.push("/");
-          }, 1500);
-        }
-      } catch (e) {
-        console.error("Redirect error:", e);
-        setError(e.message || "An error occurred during Google sign in");
-      }
-    };
-
-    // Check for redirect result when component mounts
-    handleRedirectResult();
-
-    // Set up auth state observer
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        // User is signed in
-        const isRedirect = sessionStorage.getItem("googleRedirect");
-        if (isRedirect) {
-          setSuccess("Successfully signed in with Google! Redirecting...");
-          sessionStorage.removeItem("googleRedirect");
-          setTimeout(() => {
-            router.push("/");
-          }, 1500);
-        }
-      }
-    });
-
-    return () => unsubscribe();
-  }, [router]);
 
   const handleSignIn = async () => {
     setError("");
@@ -75,16 +39,28 @@ const SignIn = () => {
 
       if (res && res.user) {
         setSuccess("Successfully signed in! Redirecting...");
-        sessionStorage.setItem("user", true);
+
+        // Get the ID token
+        const token = await res.user.getIdToken();
+
+        // Set the token in cookies
+        Cookies.set("token", token, {
+          expires: 7, // Token expires in 7 days
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+        });
+
         setEmail("");
         setPassword("");
         setTimeout(() => {
-          router.push("/");
+          router.push(callbackUrl);
         }, 2000);
       }
     } catch (e) {
       console.error("Sign in error:", e);
-      setError(e.message || "An error occurred during sign in");
+      setError(
+        e instanceof Error ? e.message : "An error occurred during sign in"
+      );
     }
   };
 
@@ -97,16 +73,40 @@ const SignIn = () => {
       provider.setCustomParameters({
         prompt: "select_account",
       });
-      // Set flag before redirect
-      sessionStorage.setItem("googleRedirect", "true");
-      await signInWithRedirect(auth, provider);
+
+      const result = await signInWithPopup(auth, provider);
+
+      if (result.user) {
+        setSuccess("Successfully signed in with Google! Redirecting...");
+        const token = await result.user.getIdToken();
+
+        // Set the token in cookies
+        document.cookie = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}`;
+
+        setTimeout(() => {
+          router.push(callbackUrl);
+        }, 1500);
+      }
     } catch (e) {
       console.error("Google sign in error:", e);
-      setError(e.message || "An error occurred during Google sign in");
+      setError(
+        e instanceof Error
+          ? e.message
+          : "An error occurred during Google sign in"
+      );
       setIsLoading(false);
-      sessionStorage.removeItem("googleRedirect");
     }
   };
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setIsLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900">
