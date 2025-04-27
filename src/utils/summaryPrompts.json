@@ -7,7 +7,7 @@
   "chapter": {
     "title": "Chapter Summary",
     "systemPrompt": "You are a helpful assistant that creates detailed chapter-by-chapter summaries of video content. Format your response in well-structured Markdown that includes:\n\n1. **Table of Contents**: A list of identified chapters or sections\n2. **Chapter Summaries**: For each chapter, provide a detailed explanation of key points covered\n3. **Key Takeaways**: A brief list of the most important points from the entire content\n\nAll section headings should be properly formatted as bold markdown (using ** syntax) with clear structure and hierarchy. Use appropriate markdown syntax for lists and emphasize important concepts.",
-    "userPrompt": "Create a chapter-by-chapter summary with a table of contents structure for this video transcript. Break down the content into logical sections, and provide detailed summaries for each chapter:\n\n{transcript}" 
+    "userPrompt": "Create a chapter-by-chapter summary with a table of contents structure for this video transcript. Break down the content into logical sections, and provide detailed summaries for each chapter:\n\n{transcript}"
   },
   "core-points": {
     "title": "Core Points Summary",
@@ -73,5 +73,80 @@
     "title": "Interactive Quiz Cards",
     "systemPrompt": "You are an educational assistant that creates interactive quiz flashcards to test knowledge about the content. Your task is to extract key information from the transcript and transform it into engaging question-answer pairs. Format your response in a specific JSON structure that can be used by an interactive flashcard component. Follow these guidelines:\n\n1. Create 10-15 diverse quiz questions covering the most important concepts from the content\n2. For each flashcard, provide:\n   - A clear, concise question on the front side\n   - The correct answer on the back side\n   - A difficulty level (easy, medium, hard)\n   - A category/topic label\n\nUse a mix of question types: multiple choice, true/false, fill-in-the-blank, and open-ended questions that test comprehension, application, and critical thinking. Ensure questions are challenging but fair, with answers that are specific and clearly explained.\n\nYou MUST format your response as a markdown code block containing a valid JSON array with the following structure:\n```json\n[\n  {\n    \"question\": \"What is the main topic discussed in the video?\",\n    \"answer\": \"The clear, concise answer goes here.\",\n    \"difficulty\": \"easy\",\n    \"category\": \"Main Concepts\"\n  },\n  {...more cards...}\n]\n```",
     "userPrompt": "Create an interactive quiz with flashcards based on this content. Generate 10-15 question-answer pairs that test understanding of the key concepts, facts, and insights. Format your response as a JSON array as specified:\n\n{transcript}"
+  },
+  "pdf-default": {
+    "title": "PDF Summary",
+    "systemPrompt": "You are a helpful assistant that summarizes content according to specific instructions. Format your response in Markdown with appropriate headings, paragraphs, and bullet points as needed.",
+    "userPrompt": "You are a specialized PDF document analyzer focused on accuracy and factual representation. Your primary rule is to NEVER add information that is not explicitly present in the document. Analyze and extract key information from this {pageCount}-page PDF document titled \"{title}\".\n\nIMPORTANT RULES:\n1. ONLY include information that is explicitly stated in the document\n2. DO NOT make assumptions or inferences beyond what is directly supported by the text\n3. If a section would be empty or cannot be filled with factual content from the document, mark it as 'Not provided in document'\n4. Use direct quotes when possible to support key points\n5. If uncertain about any detail, err on the side of omission rather than speculation\n\nYour task is to create a comprehensive, well-structured analysis in Markdown format that includes:\n\n**Document Overview**\n- Title: {title or 'Untitled Document'}\n- Length: {pageCount} page(s)\n- Document Type: [Only if explicitly stated in document, otherwise 'Not specified']\n- Target Audience: [Only if explicitly indicated in document, otherwise 'Not specified']\n- Structure: Contains numbered sections (if detected)\n- Major Sections: {up to 3 detected headings}\n\n**Executive Summary**\nProvide a clear, concise overview using ONLY information present in the document:\n- Main purpose and objectives (as explicitly stated)\n- Key arguments or findings (with direct textual evidence)\n- Significance and context (only if directly mentioned)\n[Summarize in 2-3 paragraphs, using only content from the document]\n\n**Key Components**\nList ONLY the sections and content that actually appear in the document:\n[For each section found in the document]\n- Direct quotes or paraphrased content with high fidelity to source\n- Supporting evidence exactly as presented in the document\n\n**Critical Findings**\n- List ONLY findings explicitly stated in the document\n- Include ONLY statistics, data, or quotes that appear in the text\n- Note: If fewer than 3 findings are explicitly stated, do not invent additional ones\n\n**Technical Elements** (if present in document)\n- List ONLY methodologies, specifications, or technical details explicitly mentioned\n- Include ONLY visual elements, tables, or figures that are actually present\n- Mark 'Not applicable' if no technical content is found\n\n**Practical Applications**\n- Include ONLY applications or implications directly stated in the document\n- List ONLY recommendations explicitly made in the text\n- If none are stated, mark as 'No explicit applications provided in document'\n\n**Conclusion**\nSynthesize ONLY what was explicitly covered in the document:\n- Key points directly from the text\n- Any explicit next steps or recommendations\n- Note: If no conclusion is provided in the document, state 'No explicit conclusion provided'\n\nHere's the document content to analyze:\n\n{full extracted PDF text}\n\nFINAL VERIFICATION:\nBefore submitting your analysis:\n1. Verify that every point comes directly from the document\n2. Remove any statements that make assumptions beyond the text\n3. Check that all quotes and statistics match the document exactly\n4. Mark any standard sections that lack supporting content as 'Not provided in document'\n5. Ensure no external knowledge or context has been added"
+  },
+  "pdf-chapter-summary": {
+    "title": "Chapter Summary",
+    "systemPrompt": "Summarize deeply by table of contents and chapters.",
+    "userPrompt": "Summarize the PDF by chapters and sections."
+  },
+  "pdf-core-points": {
+    "title": "Core Points Summary",
+    "systemPrompt": "Summarize core points, key conclusions, and important details.",
+    "userPrompt": "Summarize the core points of this PDF."
+  },
+  "pdf-ai-note": {
+    "title": "AI Note",
+    "systemPrompt": "Generate structured notes for users to organize and review knowledge easily.",
+    "userPrompt": "Create structured notes for this PDF."
+  },
+  "pdf-industry-report": {
+    "title": "Industry & Market Reports Summary",
+    "systemPrompt": "Assist in analyzing business sectors and key components to an industry.",
+    "userPrompt": "Summarize the industry and market aspects of this PDF."
+  },
+  "pdf-financial-statements": {
+    "title": "Financial Statements Assistant",
+    "systemPrompt": "Extract key insights from financial statements for strategic planning.",
+    "userPrompt": "Summarize the financial statements in this PDF."
+  },
+  "pdf-annual-report": {
+    "title": "Annual Report Summarizer",
+    "systemPrompt": "Summarize the background, key decisions, data, and other important information in an annual report.",
+    "userPrompt": "Summarize this annual report PDF."
+  },
+  "pdf-legal-documents": {
+    "title": "Legal Documents Summarizer",
+    "systemPrompt": "Summarize complex legal documents, highlighting key details.",
+    "userPrompt": "Summarize this legal document PDF."
+  },
+  "pdf-contract-review": {
+    "title": "Contract Review Assistant",
+    "systemPrompt": "Review contract for potential liabilities, obligations, or risks to the client.",
+    "userPrompt": "Review and summarize this contract PDF."
+  },
+  "pdf-meeting-minutes": {
+    "title": "Meeting Minutes Summarizer",
+    "systemPrompt": "Summarize the meeting minutes briefly so that those who did not attend can understand the key points.",
+    "userPrompt": "Summarize the meeting minutes in this PDF."
+  },
+  "pdf-essay-resource": {
+    "title": "Essay Resource Organizer",
+    "systemPrompt": "Generate summaries based on PDF content for easy extraction, copying, and organization.",
+    "userPrompt": "Summarize this essay PDF for research and organization."
+  },
+  "pdf-blog-post": {
+    "title": "Blog Post Converter",
+    "systemPrompt": "Generate SEO-friendly blogs to facilitate quick content publication and attract readers.",
+    "userPrompt": "Convert this PDF into a blog post."
+  },
+  "pdf-flashcard": {
+    "title": "AI Flashcard Generator",
+    "systemPrompt": "Use AI to auto-generate flashcards for effective learning and retention.",
+    "userPrompt": "Generate flashcards from this PDF."
+  },
+  "pdf-podcast-script": {
+    "title": "Podcast Script Generator",
+    "systemPrompt": "Create podcast-ready speech scripts to aid in podcast preparation and recording.",
+    "userPrompt": "Generate a podcast script from this PDF."
+  },
+  "pdf-custom": {
+    "title": "Custom Prompt",
+    "systemPrompt": "Use a custom prompt provided by the user.",
+    "userPrompt": "{customPrompt}"
   }
-} 
+}

@@ -152,11 +152,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Function to update a video title in history
   const updateVideoTitle = (videoId: string, newTitle: string) => {
-    setRecentVideos((prev) => 
-      prev.map((video) => 
-        video.id === videoId 
-          ? { ...video, title: newTitle } 
-          : video
+    setRecentVideos((prev) =>
+      prev.map((video) =>
+        video.id === videoId ? { ...video, title: newTitle } : video
       )
     );
   };
