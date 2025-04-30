@@ -75,6 +75,10 @@ import "react-pdf/dist/esm/Page/TextLayer.css";
 import { PDFViewer } from "./components/PDFViewer.tsx";
 import { extractPdfText } from "@/utils/pdfUtils";
 import summaryPrompts from "@/utils/summaryPrompts.json";
+import AccountTreeIcon from "@mui/icons-material/AccountTree";
+import ForceGraph from "./components/ForceGraph";
+import MindMap from "./components/MindMap";
+import HubIcon from "@mui/icons-material/Hub";
 
 // Add YouTube API types
 declare global {
@@ -478,10 +482,13 @@ export default function VideoDetailsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const type = searchParams.get("type");
-  const rawPdfUrl = searchParams.getAll("pdfUrl");
-  const pdfUrl = Array.isArray(rawPdfUrl) ? rawPdfUrl[0] : rawPdfUrl;
-  console.log("PDF URL for Document:", pdfUrl);
+  const pdfUrl = searchParams.get("pdfUrl");
   const isPDF = type === "pdf" && !!pdfUrl;
+
+  console.log("PDF URL:", pdfUrl);
+  console.log("Type:", type);
+  console.log("Is PDF:", isPDF);
+
   const { recentVideos, updateVideoTitle } = useAppContext();
   const [tabValue, setTabValue] = useState(0);
   const [rightTabValue, setRightTabValue] = useState(0);
@@ -573,9 +580,17 @@ export default function VideoDetailsPage() {
   const [pdfNumPages, setPdfNumPages] = useState<number>(0);
   const [pdfSummaryLoading, setPdfSummaryLoading] = useState(false);
   const [pdfSummaryError, setPdfSummaryError] = useState<string | null>(null);
+  const [showForceGraph, setShowForceGraph] = useState(false);
+  const [showMindMap, setShowMindMap] = useState(false);
+  const mindMapRef = useRef<HTMLDivElement>(null);
 
   // Fetch video details on component mount
   useEffect(() => {
+    if (isPDF) {
+      setLoading(false);
+      return;
+    }
+
     const fetchVideoDetails = async () => {
       // First try to get from recent videos history
       const savedVideo = recentVideos.find((video) => video.id === params.id);
@@ -672,7 +687,7 @@ export default function VideoDetailsPage() {
         playerCheckInterval.current = null;
       }
     };
-  }, [params.id, recentVideos]);
+  }, [params.id, recentVideos, isPDF]);
 
   // Updated createTranscriptSegments function to be smarter with short videos
   const createTranscriptSegments = (
@@ -1292,7 +1307,10 @@ export default function VideoDetailsPage() {
         let quizPrompt;
         if (isPDF) {
           // Use the PDF flashcard prompt from summaryPrompts
-          quizPrompt = summaryPrompts["pdf-flashcard"].userPrompt.replace("{content}", pdfText);
+          quizPrompt = summaryPrompts["pdf-flashcard"].userPrompt.replace(
+            "{content}",
+            pdfText
+          );
         } else {
           // Use the video flashcard prompt
           quizPrompt = `Create an interactive quiz with flashcards based on this content. Generate 10-15 question-answer pairs that test understanding of the key concepts, facts, and insights. Return ONLY a valid JSON array with objects having this structure: { "question": "...", "answer": "...", "difficulty": "(easy|medium|hard)", "category": "..." }. Do NOT include markdown formatting or code blocks, just the raw JSON array: \n\n${fullContent}`;
@@ -1778,6 +1796,20 @@ export default function VideoDetailsPage() {
     }
   }, [isPDF, pdfUrl]);
 
+  const handleMindMapClick = () => {
+    if (showMindMap) {
+      // If mindmap exists, scroll to it
+      mindMapRef.current?.scrollIntoView({ behavior: "smooth" });
+    } else {
+      // Create new mindmap
+      setShowMindMap(true);
+      // Wait for mindmap to be created, then scroll to it
+      setTimeout(() => {
+        mindMapRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    }
+  };
+
   return (
     <>
       <Box sx={{ p: 2, fontFamily: "Inter, sans-serif" }}>
@@ -1788,7 +1820,6 @@ export default function VideoDetailsPage() {
             {isPDF ? (
               <PDFViewer url={pdfUrl} />
             ) : (
-              // ...existing video player code...
               <>
                 {/* Video Title and Actions */}
                 <Box
@@ -2293,473 +2324,79 @@ export default function VideoDetailsPage() {
 
           {/* Right Section */}
           <Grid item xs={12} md={7}>
+            {/* Right column buttons */}
             <Box
               sx={{
-                p: 2,
+                display: "flex",
+                gap: 1,
+                mb: 2,
+                pl: 2,
+                justifyContent: "flex-end",
               }}
             >
-              {/* Right Section Tabs */}
-              <Box
+              {/* Summarize Button */}
+              <Button
+                variant="contained"
+                onClick={handleSummaryMenuOpen}
+                endIcon={<KeyboardArrowDownIcon />}
+                sx={{ textTransform: "none" }}
+              >
+                Summarize
+              </Button>
+              {/* Knowledge Graph Button */}
+              <Tooltip title="Show Knowledge Graph">
+                <IconButton
+                  onClick={() => setShowForceGraph(!showForceGraph)}
+                  color={showForceGraph ? "primary" : "default"}
+                >
+                  <HubIcon />
+                </IconButton>
+              </Tooltip>
+              {/* Mind Map Button */}
+              <Tooltip title="Mind Map">
+                <IconButton
+                  onClick={handleMindMapClick}
+                  sx={{
+                    bgcolor: theme.palette.background.paper,
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                    color: showMindMap
+                      ? theme.palette.primary.main
+                      : theme.palette.text.secondary,
+                    "&:hover": {
+                      bgcolor: theme.palette.primary.light,
+                      color: "#fff",
+                    },
+                  }}
+                >
+                  <AccountTreeIcon />
+                </IconButton>
+              </Tooltip>
+              {/* School Icon */}
+              <IconButton
+                onClick={handleCustomPrompt}
                 sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  width: "100%",
-                  mb: 3,
+                  color: theme.palette.primary.main,
                 }}
               >
-                {/* Left side content - can be empty or add tabs here in the future */}
-                <Box></Box>
+                <SchoolIcon />
+              </IconButton>
+              {/* Add Note Button */}
+              <IconButton
+                onClick={handleAddNote}
+                sx={{
+                  color: theme.palette.primary.main,
+                }}
+              >
+                <AddIcon />
+              </IconButton>
+            </Box>
 
-                {/* Action Buttons - moved to the right */}
-                <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
-                  <Box sx={{ position: "relative" }}>
-                    <Button
-                      variant="contained"
-                      size="small"
-                      onClick={() => handleSummarize()}
-                      disabled={
-                        isSummarizing ||
-                        transcriptLoading ||
-                        transcriptSegments.length === 0
-                      }
-                      sx={{
-                        height: "32px",
-                        display: "flex",
-                        alignItems: "center",
-                        background:
-                          "linear-gradient(90deg, #2e83fb 0%, #9867ff 100%)",
-                        borderRadius: "8px", // Using 8px as approximate for var(--base-card-border-radius)
-                        border: "none",
-                        color: "#FFFFFF",
-                        px: 2,
-                        fontSize: "0.75rem",
-                        fontWeight: 500,
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
-                        "&:hover": {
-                          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                        },
-                        textTransform: "none",
-                      }}
-                      endIcon={
-                        <Box
-                          component="span"
-                          onClick={(e: React.MouseEvent<HTMLSpanElement>) => {
-                            e.stopPropagation();
-                            handleSummaryMenuOpen(e);
-                          }}
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            pl: 0.5,
-                            cursor: "pointer",
-                            "&:hover": {
-                              opacity: 0.8,
-                            },
-                          }}
-                        >
-                          <ArrowDropDownIcon fontSize="small" />
-                        </Box>
-                      }
-                    >
-                      {isSummarizing ? (
-                        <CircularProgress
-                          size={16}
-                          sx={{ color: "#FFFFFF", mr: 1 }}
-                        />
-                      ) : (
-                        <AutoFixHighIcon sx={{ fontSize: "0.9rem", mr: 0.5 }} />
-                      )}
-                      {isSummarizing ? "Summarizing..." : "Summarize"}
-                    </Button>
-
-                    {/* Summary Options Menu */}
-                    <Menu
-                      anchorEl={summaryMenuAnchorEl}
-                      open={Boolean(summaryMenuAnchorEl)}
-                      onClose={handleSummaryMenuClose}
-                      anchorOrigin={{
-                        vertical: "bottom",
-                        horizontal: "right",
-                      }}
-                      transformOrigin={{
-                        vertical: "top",
-                        horizontal: "right",
-                      }}
-                      PaperProps={{
-                        elevation: 3,
-                        sx: {
-                          mt: 0.5,
-                          minWidth: 280,
-                          maxHeight: 400,
-                          borderRadius: 1,
-                          overflow: "auto",
-                          padding: "4px 0",
-                          boxShadow: "0px 5px 15px rgba(0,0,0,0.1)",
-                          "&:before": {
-                            content: '""',
-                            display: "block",
-                            position: "absolute",
-                            top: -5,
-                            right: 10,
-                            width: 10,
-                            height: 10,
-                            bgcolor: "background.paper",
-                            transform: "rotate(45deg)",
-                            zIndex: 0,
-                          },
-                        },
-                      }}
-                    >
-                      <MenuItem
-                        onClick={handleCustomPrompt}
-                        sx={{
-                          py: 1.2,
-                          pl: 2,
-                          borderRadius: "4px",
-                          mx: 0.5,
-                          "&:hover": {
-                            backgroundColor: "rgba(0, 0, 0, 0.04)",
-                          },
-                        }}
-                      >
-                        <AddIcon
-                          fontSize="small"
-                          sx={{ mr: 1.5, color: theme.palette.primary.main }}
-                        />
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                          Add Custom Prompt
-                        </Typography>
-                      </MenuItem>
-
-                      <Divider sx={{ my: 1 }} />
-
-                      {/* General Summaries */}
-                      <ListSubheader
-                        sx={{
-                          bgcolor: "transparent",
-                          color: theme.palette.text.secondary,
-                          fontWeight: 600,
-                          fontSize: "0.75rem",
-                          lineHeight: "1.5",
-                          px: 2,
-                        }}
-                      >
-                        General Summaries
-                      </ListSubheader>
-
-                      <MenuItem
-                        onClick={() => handleSummaryTemplate("chapter")}
-                        sx={{ py: 0.8, px: 2, fontSize: "0.85rem" }}
-                      >
-                        Chapter Summary
-                      </MenuItem>
-
-                      <MenuItem
-                        onClick={() => handleSummaryTemplate("core-points")}
-                        sx={{ py: 0.8, px: 2, fontSize: "0.85rem" }}
-                      >
-                        Core Points Summary
-                      </MenuItem>
-
-                      <MenuItem
-                        onClick={() => handleSummaryTemplate("notes")}
-                        sx={{ py: 0.8, px: 2, fontSize: "0.85rem" }}
-                      >
-                        AI Note
-                      </MenuItem>
-
-                      <Divider sx={{ my: 1 }} />
-
-                      {/* Business & Finance */}
-                      <ListSubheader
-                        sx={{
-                          bgcolor: "transparent",
-                          color: theme.palette.text.secondary,
-                          fontWeight: 600,
-                          fontSize: "0.75rem",
-                          lineHeight: "1.5",
-                          px: 2,
-                        }}
-                      >
-                        Business & Finance
-                      </ListSubheader>
-
-                      <MenuItem
-                        onClick={() => handleSummaryTemplate("industry")}
-                        sx={{ py: 0.8, px: 2, fontSize: "0.85rem" }}
-                      >
-                        Industry & Market Analysis
-                      </MenuItem>
-
-                      <MenuItem
-                        onClick={() => handleSummaryTemplate("financial")}
-                        sx={{ py: 0.8, px: 2, fontSize: "0.85rem" }}
-                      >
-                        Financial Summary
-                      </MenuItem>
-
-                      <MenuItem
-                        onClick={() => handleSummaryTemplate("annual-report")}
-                        sx={{ py: 0.8, px: 2, fontSize: "0.85rem" }}
-                      >
-                        Annual Report Summary
-                      </MenuItem>
-
-                      <Divider sx={{ my: 1 }} />
-
-                      {/* Legal & Documentation */}
-                      <ListSubheader
-                        sx={{
-                          bgcolor: "transparent",
-                          color: theme.palette.text.secondary,
-                          fontWeight: 600,
-                          fontSize: "0.75rem",
-                          lineHeight: "1.5",
-                          px: 2,
-                        }}
-                      >
-                        Legal & Documentation
-                      </ListSubheader>
-
-                      <MenuItem
-                        onClick={() => handleSummaryTemplate("legal")}
-                        sx={{ py: 0.8, px: 2, fontSize: "0.85rem" }}
-                      >
-                        Legal Document Summary
-                      </MenuItem>
-
-                      <MenuItem
-                        onClick={() => handleSummaryTemplate("contract")}
-                        sx={{ py: 0.8, px: 2, fontSize: "0.85rem" }}
-                      >
-                        Contract Analysis
-                      </MenuItem>
-
-                      <MenuItem
-                        onClick={() => handleSummaryTemplate("meeting")}
-                        sx={{ py: 0.8, px: 2, fontSize: "0.85rem" }}
-                      >
-                        Meeting Minutes
-                      </MenuItem>
-
-                      <Divider sx={{ my: 1 }} />
-
-                      {/* Content Creation */}
-                      <ListSubheader
-                        sx={{
-                          bgcolor: "transparent",
-                          color: theme.palette.text.secondary,
-                          fontWeight: 600,
-                          fontSize: "0.75rem",
-                          lineHeight: "1.5",
-                          px: 2,
-                        }}
-                      >
-                        Content Creation
-                      </ListSubheader>
-
-                      <MenuItem
-                        onClick={() => handleSummaryTemplate("essay")}
-                        sx={{ py: 0.8, px: 2, fontSize: "0.85rem" }}
-                      >
-                        Academic Essay Resource
-                      </MenuItem>
-
-                      <MenuItem
-                        onClick={() => handleSummaryTemplate("blog")}
-                        sx={{ py: 0.8, px: 2, fontSize: "0.85rem" }}
-                      >
-                        Blog Post Draft
-                      </MenuItem>
-
-                      <MenuItem
-                        onClick={() => handleSummaryTemplate("flashcards")}
-                        sx={{ py: 0.8, px: 2, fontSize: "0.85rem" }}
-                      >
-                        Study Flashcards
-                      </MenuItem>
-
-                      <MenuItem
-                        onClick={() => handleSummaryTemplate("podcast")}
-                        sx={{ py: 0.8, px: 2, fontSize: "0.85rem" }}
-                      >
-                        Podcast Script
-                      </MenuItem>
-                    </Menu>
-
-                    {/* Custom Prompt Dialog */}
-                    {showCustomPromptInput && (
-                      <Paper
-                        elevation={4}
-                        sx={{
-                          position: "absolute",
-                          top: "40px",
-                          right: 0,
-                          zIndex: 1200,
-                          width: "320px",
-                          p: 2.5,
-                          borderRadius: 2,
-                          boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
-                        }}
-                      >
-                        <Typography
-                          variant="subtitle1"
-                          sx={{
-                            fontWeight: 600,
-                            mb: 1.5,
-                            display: "flex",
-                            alignItems: "center",
-                            color: theme.palette.primary.main,
-                          }}
-                        >
-                          <MessageIcon sx={{ mr: 1, fontSize: "1.1rem" }} />
-                          Create Custom Prompt
-                        </Typography>
-
-                        {/* Title Input */}
-                        <Typography
-                          variant="caption"
-                          sx={{ fontWeight: 500, mb: 0.5, display: "block" }}
-                        >
-                          Title
-                        </Typography>
-                        <input
-                          type="text"
-                          value={customPromptTitle}
-                          onChange={(e) => setCustomPromptTitle(e.target.value)}
-                          placeholder="Enter a title for your summary..."
-                          style={{
-                            width: "100%",
-                            padding: "10px",
-                            marginBottom: "12px",
-                            borderRadius: "6px",
-                            border: `1px solid ${theme.palette.divider}`,
-                            fontFamily: "inherit",
-                            fontSize: "0.9rem",
-                            outline: "none",
-                            transition: "border-color 0.2s",
-                            backgroundColor: theme.palette.background.paper,
-                            color: theme.palette.text.primary,
-                          }}
-                        />
-
-                        {/* Prompt Input */}
-                        <Typography
-                          variant="caption"
-                          sx={{ fontWeight: 500, mb: 0.5, display: "block" }}
-                        >
-                          Prompt
-                        </Typography>
-                        <textarea
-                          value={customPrompt}
-                          onChange={(e) => setCustomPrompt(e.target.value)}
-                          placeholder="Example: Explain this video as if I'm 10 years old, or focus on the technical aspects only..."
-                          style={{
-                            width: "100%",
-                            padding: "12px",
-                            marginBottom: "16px",
-                            borderRadius: "8px",
-                            border: `1px solid ${theme.palette.divider}`,
-                            minHeight: "100px",
-                            resize: "vertical",
-                            fontFamily: "inherit",
-                            fontSize: "0.9rem",
-                            outline: "none",
-                            transition: "border-color 0.2s",
-                            backgroundColor: theme.palette.background.paper,
-                            color: theme.palette.text.primary,
-                          }}
-                        />
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "flex-end",
-                            gap: 1.5,
-                          }}
-                        >
-                          <Button
-                            size="small"
-                            onClick={handleCancelCustomPrompt}
-                            sx={{
-                              textTransform: "none",
-                              px: 2.5,
-                              py: 0.8,
-                              color: theme.palette.text.secondary,
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            size="small"
-                            variant="contained"
-                            onClick={handleSubmitCustomPrompt}
-                            sx={{
-                              textTransform: "none",
-                              px: 2.5,
-                              py: 0.8,
-                              background:
-                                "linear-gradient(90deg, #2e83fb 0%, #9867ff 100%)",
-                              boxShadow: "0 2px 8px rgba(46, 131, 251, 0.25)",
-                            }}
-                          >
-                            Submit
-                          </Button>
-                        </Box>
-                      </Paper>
-                    )}
-                  </Box>
-
-                  {/* AI Flash Card Button */}
-                  <Tooltip title="AI Flash Cards">
-                    <IconButton
-                      size="small"
-                      onClick={() => handleSummaryTemplate("quiz-flashcards")}
-                      disabled={
-                        isSummarizing ||
-                        transcriptLoading ||
-                        transcriptSegments.length === 0
-                      }
-                      sx={{
-                        bgcolor: theme.palette.background.paper,
-                        color: theme.palette.text.secondary,
-                        width: "20px",
-                        height: "20px",
-                        "&:hover": {
-                          bgcolor: theme.palette.divider,
-                          color: theme.palette.text.primary,
-                        },
-                      }}
-                    >
-                      <SchoolIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-
-                  <Tooltip title="Add Notes">
-                    <IconButton
-                      size="small"
-                      onClick={handleAddNote}
-                      sx={{
-                        bgcolor: theme.palette.background.paper,
-                        color: theme.palette.text.secondary,
-                        width: "20px",
-                        height: "20px",
-                        "&:hover": {
-                          bgcolor: theme.palette.divider,
-                          color: theme.palette.text.primary,
-                        },
-                      }}
-                    >
-                      <AddIcon sx={{ marginRight: "1.25rem" }} />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-              </Box>
-
-              {/* Summary and Highlights */}
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                {/* Default Summary Card - always show this one first */}
+            {/* Cards Section */}
+            <Box sx={{ pl: 2 }}>
+              {/* Summary Cards */}
+              {summaryCards.map((card) => (
                 <Paper
+                  key={card.id}
                   elevation={0}
                   sx={{
                     border: `1px solid ${theme.palette.divider}`,
@@ -2950,764 +2587,304 @@ export default function VideoDetailsPage() {
                     </Box>
                   )}
                 </Paper>
+              ))}
 
-                {/* Additional Summary Cards - only show non-default templates */}
-                {summaryCards
-                  .filter((card) => card.type !== "default")
-                  .map((card) => (
-                    <Paper
-                      key={card.id}
-                      elevation={0}
-                      sx={{
-                        border: `1px solid ${theme.palette.divider}`,
-                        borderRadius: 2,
-                        p: 2,
-                        bgcolor: theme.palette.background.paper,
-                        width: "100%",
-                        overflowY: "auto",
-                        pr: 1,
-                        "&::-webkit-scrollbar": {
-                          width: "6px",
-                        },
-                        "&::-webkit-scrollbar-track": {
-                          background:
-                            theme.palette.mode === "light"
-                              ? "#F3F4F6"
-                              : "#2a2a3a",
-                          borderRadius: "3px",
-                        },
-                        "&::-webkit-scrollbar-thumb": {
-                          background:
-                            theme.palette.mode === "light"
-                              ? "#D1D5DB"
-                              : "#4a4a5a",
-                          borderRadius: "3px",
-                          "&:hover": {
-                            background:
-                              theme.palette.mode === "light"
-                                ? "#9CA3AF"
-                                : "#5a5a6a",
+              {/* Notes */}
+              {noteCards.map((note) => (
+                <Paper
+                  key={note.id}
+                  elevation={0}
+                  sx={{
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    p: 2,
+                    bgcolor: theme.palette.background.paper,
+                    width: "100%",
+                    overflowY: "auto",
+                    pr: 1,
+                    "&::-webkit-scrollbar": {
+                      width: "6px",
+                    },
+                    "&::-webkit-scrollbar-track": {
+                      background:
+                        theme.palette.mode === "light" ? "#F3F4F6" : "#2a2a3a",
+                      borderRadius: "3px",
+                    },
+                    "&::-webkit-scrollbar-thumb": {
+                      background:
+                        theme.palette.mode === "light" ? "#D1D5DB" : "#4a4a5a",
+                      borderRadius: "3px",
+                      "&:hover": {
+                        background:
+                          theme.palette.mode === "light"
+                            ? "#9CA3AF"
+                            : "#5a5a6a",
+                      },
+                    },
+                  }}
+                >
+                  {note.isEditing ? (
+                    // Editing Mode
+                    <Box sx={{ p: 2 }}>
+                      <TextField
+                        fullWidth
+                        placeholder="Catch what you're thinking now"
+                        multiline
+                        rows={5}
+                        inputRef={noteInputRef}
+                        value={editingNoteContent}
+                        onChange={(e) => setEditingNoteContent(e.target.value)}
+                        variant="outlined"
+                        margin="normal"
+                        size="small"
+                        onKeyDown={(e) => handleNoteKeyDown(e, note.id)}
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            "& fieldset": {
+                              borderColor: theme.palette.divider,
+                            },
+                            "&:hover fieldset": {
+                              borderColor: theme.palette.primary.light,
+                            },
+                            "&.Mui-focused fieldset": {
+                              borderColor: theme.palette.primary.main,
+                            },
                           },
-                        },
-                      }}
-                    >
-                      {editingCardId === card.id ? (
-                        <Box sx={{ p: 2 }}>
-                          <TextField
-                            fullWidth
-                            label="Title"
-                            value={editTitle}
-                            onChange={(e) => setEditTitle(e.target.value)}
-                            variant="outlined"
-                            margin="normal"
-                            size="small"
-                          />
-                          <TextField
-                            fullWidth
-                            label="Custom Prompt (optional)"
-                            value={editPrompt}
-                            onChange={(e) => setEditPrompt(e.target.value)}
-                            variant="outlined"
-                            margin="normal"
-                            size="small"
-                            multiline
-                            rows={3}
-                          />
-                          <Box
-                            sx={{
-                              display: "flex",
-                              justifyContent: "flex-end",
-                              mt: 2,
-                              gap: 1,
-                            }}
-                          >
-                            <Button onClick={handleCancelCardEdit} size="small">
-                              Cancel
-                            </Button>
-                            <Button
-                              onClick={handleSaveCardEdit}
-                              variant="contained"
-                              size="small"
-                              sx={{
-                                background:
-                                  "linear-gradient(90deg, #2e83fb 0%, #9867ff 100%)",
-                              }}
-                            >
-                              Save
-                            </Button>
-                          </Box>
-                        </Box>
-                      ) : (
-                        <Box
+                        }}
+                      />
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "center",
+                          mt: 2,
+                          gap: 1,
+                        }}
+                      >
+                        <Button
+                          onClick={() => handleCancelNote(note.id)}
+                          size="small"
                           sx={{
-                            padding: "0.1rem 0.5rem 0.1rem 0.5rem",
-                            position: "relative",
-                            minHeight: "200px",
-                            paddingBottom: "60px",
-                            "& p": { margin: "0.75em 0" },
-                            "& ul": {
-                              paddingLeft: "1.5em",
-                              margin: "0.75em 0",
-                            },
-                            "& li": { margin: "0.5em 0", paddingLeft: "0.5em" },
-                            "& strong": {
-                              fontWeight: "bold",
-                              color: theme.palette.primary.main,
-                              fontSize: "1em",
-                              display: "block",
-                              marginTop: "1em",
-                              marginBottom: "0.75em",
-                              borderBottom: `1px solid ${theme.palette.divider}`,
-                              paddingBottom: "0.25em",
-                            },
-                            "& h1, & h2, & h3, & h4, & h5, & h6": {
-                              margin: "1.25em 0 0.75em 0",
-                              fontWeight: "bold",
-                              color: theme.palette.primary.main,
-                            },
+                            color: theme.palette.text.secondary,
+                            border: `1px solid ${theme.palette.divider}`,
                           }}
                         >
-                          <Typography
-                            variant="subtitle1"
-                            sx={{
-                              fontWeight: "bold",
-                              mb: 2,
-                              color: theme.palette.primary.main,
-                            }}
-                          >
-                            {card.title}
-                          </Typography>
-
-                          {card.type === "quiz-flashcards" &&
-                          card.flashcards ? (
-                            // Render flashcard carousel for quiz cards
-                            <Box sx={{ mb: 4 }}>
-                              <FlashcardCarousel
-                                cards={card.flashcards}
-                                title={card.title}
-                              />
-                            </Box>
-                          ) : (
-                            // Regular markdown content for other types
-                            <Box sx={{ mb: 4 }}>
-                              <ReactMarkdown>{card.content}</ReactMarkdown>
-                            </Box>
-                          )}
-
-                          {/* Action Buttons */}
-                          <Box
-                            sx={{
-                              position: "absolute",
-                              bottom: 10,
-                              right: 10,
-                              display: "flex",
-                              gap: 1,
-                              zIndex: 1,
-                              backgroundColor: "background.paper",
-                              padding: "8px",
-                              borderRadius: "4px",
-                              boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                            }}
-                          >
-                            {card.type === "quiz-flashcards" ? (
-                              <>
-                                <IconButton
-                                  size="small"
-                                  onClick={() => {
-                                    // Copy all flashcards to clipboard
-                                    const flashcardsText = card.flashcards
-                                      ?.map(
-                                        (fc) =>
-                                          `Question: ${fc.question}\nAnswer: ${fc.answer}\nDifficulty: ${fc.difficulty}\nCategory: ${fc.category}\n`
-                                      )
-                                      .join("\n");
-                                    navigator.clipboard.writeText(
-                                      flashcardsText || ""
-                                    );
-                                    setShowCopyAlert(true);
-                                  }}
-                                  sx={{
-                                    bgcolor: theme.palette.background.paper,
-                                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                                    color: theme.palette.primary.main,
-                                    "&:hover": {
-                                      bgcolor: theme.palette.primary.light,
-                                      color: "#fff",
-                                    },
-                                  }}
-                                >
-                                  <ContentCopyIcon fontSize="small" />
-                                </IconButton>
-                                <IconButton
-                                  size="small"
-                                  onClick={async () => {
-                                    try {
-                                      // Create a new presentation
-                                      const pres = new pptxgen();
-
-                                      // Set presentation properties
-                                      pres.layout = "LAYOUT_16x9";
-                                      pres.author = "NoteGPT";
-                                      pres.title = card.title || "Flash Cards";
-
-                                      // Add title slide
-                                      let slide = pres.addSlide();
-                                      slide.background = { color: "FFFFFF" };
-                                      slide.addText(
-                                        card.title || "Flash Cards",
-                                        {
-                                          x: 0.5,
-                                          y: 1.5,
-                                          w: "90%",
-                                          h: 1.5,
-                                          fontSize: 44,
-                                          color: "363636",
-                                          bold: true,
-                                          align: "center",
-                                          fontFace: "Arial",
-                                        }
-                                      );
-
-                                      // Add each flashcard (question and answer slides)
-                                      card.flashcards?.forEach((fc, idx) => {
-                                        // Question slide
-                                        slide = pres.addSlide();
-                                        slide.background = { color: "FFFFFF" };
-
-                                        // Card number
-                                        slide.addText(`Card ${idx + 1}`, {
-                                          x: 0.5,
-                                          y: 0.25,
-                                          w: 2,
-                                          h: 0.5,
-                                          fontSize: 14,
-                                          color: "666666",
-                                          fontFace: "Arial",
-                                        });
-
-                                        // Difficulty badge
-                                        slide.addText(
-                                          fc.difficulty.toUpperCase(),
-                                          {
-                                            x: 0.5,
-                                            y: 0.5,
-                                            w: 1.5,
-                                            h: 0.4,
-                                            fontSize: 12,
-                                            color: "FFFFFF",
-                                            fill: {
-                                              color: getDifficultyColor(
-                                                fc.difficulty
-                                              ).replace("#", ""),
-                                            },
-                                            align: "center",
-                                            fontFace: "Arial",
-                                            bold: true,
-                                          }
-                                        );
-
-                                        // Category badge
-                                        slide.addText(fc.category, {
-                                          x: 2.2,
-                                          y: 0.5,
-                                          w: 2,
-                                          h: 0.4,
-                                          fontSize: 12,
-                                          color: "FFFFFF",
-                                          fill: { color: "2196F3" },
-                                          align: "center",
-                                          fontFace: "Arial",
-                                        });
-
-                                        // Question label
-                                        slide.addText("Question", {
-                                          x: 0.5,
-                                          y: 1.2,
-                                          w: "90%",
-                                          h: 0.6,
-                                          fontSize: 28,
-                                          color: "363636",
-                                          bold: true,
-                                          align: "center",
-                                          fontFace: "Arial",
-                                        });
-
-                                        // Question text
-                                        slide.addText(fc.question, {
-                                          x: 0.5,
-                                          y: 2,
-                                          w: "90%",
-                                          h: 2,
-                                          fontSize: 20,
-                                          color: "363636",
-                                          align: "center",
-                                          fontFace: "Arial",
-                                          breakLine: true,
-                                        });
-
-                                        // Answer slide
-                                        slide = pres.addSlide();
-                                        slide.background = { color: "FFFFFF" };
-
-                                        // Card number
-                                        slide.addText(`Card ${idx + 1}`, {
-                                          x: 0.5,
-                                          y: 0.25,
-                                          w: 2,
-                                          h: 0.5,
-                                          fontSize: 14,
-                                          color: "666666",
-                                          fontFace: "Arial",
-                                        });
-
-                                        // Difficulty badge
-                                        slide.addText(
-                                          fc.difficulty.toUpperCase(),
-                                          {
-                                            x: 0.5,
-                                            y: 0.5,
-                                            w: 1.5,
-                                            h: 0.4,
-                                            fontSize: 12,
-                                            color: "FFFFFF",
-                                            fill: {
-                                              color: getDifficultyColor(
-                                                fc.difficulty
-                                              ).replace("#", ""),
-                                            },
-                                            align: "center",
-                                            fontFace: "Arial",
-                                            bold: true,
-                                          }
-                                        );
-
-                                        // Category badge
-                                        slide.addText(fc.category, {
-                                          x: 2.2,
-                                          y: 0.5,
-                                          w: 2,
-                                          h: 0.4,
-                                          fontSize: 12,
-                                          color: "FFFFFF",
-                                          fill: { color: "2196F3" },
-                                          align: "center",
-                                          fontFace: "Arial",
-                                        });
-
-                                        // Answer label
-                                        slide.addText("Answer", {
-                                          x: 0.5,
-                                          y: 1.2,
-                                          w: "90%",
-                                          h: 0.6,
-                                          fontSize: 28,
-                                          color: "2196F3",
-                                          bold: true,
-                                          align: "center",
-                                          fontFace: "Arial",
-                                        });
-
-                                        // Answer text
-                                        slide.addText(fc.answer, {
-                                          x: 0.5,
-                                          y: 2,
-                                          w: "90%",
-                                          h: 2,
-                                          fontSize: 20,
-                                          color: "363636",
-                                          align: "center",
-                                          fontFace: "Arial",
-                                          breakLine: true,
-                                        });
-                                      });
-
-                                      // Save the presentation
-                                      await pres.writeFile({
-                                        fileName: `${
-                                          card.title || "flashcards"
-                                        }.pptx`,
-                                      });
-                                    } catch (error) {
-                                      console.error(
-                                        "Error generating PPTX:",
-                                        error
-                                      );
-                                    }
-                                  }}
-                                  sx={{
-                                    bgcolor: theme.palette.background.paper,
-                                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                                    color: theme.palette.primary.main,
-                                    "&:hover": {
-                                      bgcolor: theme.palette.primary.light,
-                                      color: "#fff",
-                                    },
-                                  }}
-                                >
-                                  <DownloadIcon fontSize="small" />
-                                </IconButton>
-                              </>
-                            ) : (
-                              <IconButton
-                                size="small"
-                                sx={{
-                                  bgcolor: theme.palette.background.paper,
-                                  boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                                  color: theme.palette.primary.main,
-                                  "&:hover": {
-                                    bgcolor: theme.palette.primary.light,
-                                    color: "#fff",
-                                  },
-                                }}
-                                onClick={() => handleEditSummaryCard(card.id)}
-                              >
-                                <EditIcon fontSize="small" />
-                              </IconButton>
-                            )}
-                            <IconButton
-                              size="small"
-                              sx={{
-                                bgcolor: theme.palette.background.paper,
-                                boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                                color: theme.palette.error.main,
-                                "&:hover": {
-                                  bgcolor: theme.palette.error.light,
-                                  color: "#fff",
-                                },
-                              }}
-                              onClick={() => handleDeleteSummaryCard(card.id)}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Box>
-
-                          {/* Card Type Label */}
-                          <Box
-                            sx={{
-                              position: "absolute",
-                              bottom: 10,
-                              left: 10,
-                              zIndex: 1,
-                              padding: "0 12px",
-                              borderRadius: "4px",
-                              boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                              fontSize: "14px",
-                              height: "30px",
-                              lineHeight: "28px",
-                              color:
-                                theme.palette.mode === "light"
-                                  ? "#2e83fb"
-                                  : "#2e83fb",
-                              backgroundColor:
-                                theme.palette.mode === "light"
-                                  ? "#ecf5ff"
-                                  : "#1e1e2d",
-                              border: `1px solid ${
-                                theme.palette.mode === "light"
-                                  ? "#d9ecff"
-                                  : "#409eff"
-                              }`,
-                            }}
-                          >
-                            {card.type === "quiz-flashcards"
-                              ? "AI Flash Cards"
-                              : card.title}
-                          </Box>
-                        </Box>
-                      )}
-                    </Paper>
-                  ))}
-
-                {/* Show loading indicator for additional summaries */}
-                {isSummarizing &&
-                  summaryCards.some((card) => card.type !== "default") && (
-                    <Paper
-                      elevation={0}
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={() => handleSaveNote(note.id)}
+                          variant="contained"
+                          size="small"
+                          sx={{
+                            background:
+                              "linear-gradient(90deg, #2e83fb 0%, #9867ff 100%)",
+                          }}
+                        >
+                          Save
+                        </Button>
+                      </Box>
+                    </Box>
+                  ) : (
+                    // View Mode
+                    <Box
                       sx={{
-                        border: `1px solid ${theme.palette.divider}`,
-                        borderRadius: 2,
-                        p: 2,
-                        bgcolor: theme.palette.background.paper,
-                        width: "100%",
+                        padding: "0.1rem 0.5rem 0.1rem 0.5rem",
+                        position: "relative",
+                        minHeight: "200px",
+                        paddingBottom: "60px",
+                        "& p": { margin: "0.75em 0" },
                       }}
                     >
                       <Box
                         sx={{
                           display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          py: 4,
+                          alignItems: "flex-start",
+                          mb: 2,
                         }}
                       >
-                        <CircularProgress size={20} sx={{ mb: 1 }} />
-                        <Typography variant="body1">
-                          Generating additional summary...
+                        <Typography
+                          variant="body2"
+                          component="div"
+                          color="primary"
+                          sx={{
+                            fontWeight: "bold",
+                            minWidth: "50px",
+                            mr: 2,
+                            cursor: "pointer",
+                          }}
+                          onClick={() => {
+                            if (playerRef.current) {
+                              playerRef.current.seekTo(note.timestamp);
+                            }
+                          }}
+                        >
+                          {formatTime(note.timestamp)}
+                        </Typography>
+                        <Typography
+                          variant="body1"
+                          component="div"
+                          sx={{
+                            whiteSpace: "pre-wrap",
+                            maxHeight: "300px",
+                            overflowY: "auto",
+                          }}
+                        >
+                          {note.content}
                         </Typography>
                       </Box>
-                    </Paper>
-                  )}
 
-                {/* Note Cards */}
-                {noteCards.map((note) => (
-                  <Paper
-                    key={note.id}
-                    elevation={0}
-                    sx={{
-                      border: `1px solid ${theme.palette.divider}`,
-                      borderRadius: 2,
-                      p: 2,
-                      bgcolor: theme.palette.background.paper,
-                      width: "100%",
-                      overflowY: "auto",
-                      pr: 1,
-                      "&::-webkit-scrollbar": {
-                        width: "6px",
-                      },
-                      "&::-webkit-scrollbar-track": {
-                        background:
-                          theme.palette.mode === "light"
-                            ? "#F3F4F6"
-                            : "#2a2a3a",
-                        borderRadius: "3px",
-                      },
-                      "&::-webkit-scrollbar-thumb": {
-                        background:
-                          theme.palette.mode === "light"
-                            ? "#D1D5DB"
-                            : "#4a4a5a",
-                        borderRadius: "3px",
-                        "&:hover": {
-                          background:
-                            theme.palette.mode === "light"
-                              ? "#9CA3AF"
-                              : "#5a5a6a",
-                        },
-                      },
-                    }}
-                  >
-                    {note.isEditing ? (
-                      // Editing Mode
-                      <Box sx={{ p: 2 }}>
-                        <TextField
-                          fullWidth
-                          placeholder="Catch what you're thinking now"
-                          multiline
-                          rows={5}
-                          inputRef={noteInputRef}
-                          value={editingNoteContent}
-                          onChange={(e) =>
-                            setEditingNoteContent(e.target.value)
-                          }
-                          variant="outlined"
-                          margin="normal"
-                          size="small"
-                          onKeyDown={(e) => handleNoteKeyDown(e, note.id)}
-                          sx={{
-                            "& .MuiOutlinedInput-root": {
-                              "& fieldset": {
-                                borderColor: theme.palette.divider,
-                              },
-                              "&:hover fieldset": {
-                                borderColor: theme.palette.primary.light,
-                              },
-                              "&.Mui-focused fieldset": {
-                                borderColor: theme.palette.primary.main,
-                              },
-                            },
-                          }}
-                        />
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "center",
-                            mt: 2,
-                            gap: 1,
-                          }}
-                        >
-                          <Button
-                            onClick={() => handleCancelNote(note.id)}
-                            size="small"
-                            sx={{
-                              color: theme.palette.text.secondary,
-                              border: `1px solid ${theme.palette.divider}`,
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            onClick={() => handleSaveNote(note.id)}
-                            variant="contained"
-                            size="small"
-                            sx={{
-                              background:
-                                "linear-gradient(90deg, #2e83fb 0%, #9867ff 100%)",
-                            }}
-                          >
-                            Save
-                          </Button>
-                        </Box>
-                      </Box>
-                    ) : (
-                      // View Mode
+                      {/* Action Buttons */}
                       <Box
                         sx={{
-                          padding: "0.1rem 0.5rem 0.1rem 0.5rem",
-                          position: "relative",
-                          minHeight: "200px",
-                          paddingBottom: "60px",
-                          "& p": { margin: "0.75em 0" },
+                          position: "absolute",
+                          bottom: 10,
+                          right: 10,
+                          display: "flex",
+                          gap: 1,
+                          zIndex: 1,
+                          backgroundColor: theme.palette.background.paper,
+                          padding: "8px",
+                          borderRadius: "4px",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
                         }}
                       >
-                        <Box
+                        <IconButton
+                          size="small"
                           sx={{
-                            display: "flex",
-                            alignItems: "flex-start",
-                            mb: 2,
-                          }}
-                        >
-                          <Typography
-                            variant="body2"
-                            component="div"
-                            color="primary"
-                            sx={{
-                              fontWeight: "bold",
-                              minWidth: "50px",
-                              mr: 2,
-                              cursor: "pointer",
-                            }}
-                            onClick={() => {
-                              if (playerRef.current) {
-                                playerRef.current.seekTo(note.timestamp);
-                              }
-                            }}
-                          >
-                            {formatTime(note.timestamp)}
-                          </Typography>
-                          <Typography
-                            variant="body1"
-                            component="div"
-                            sx={{
-                              whiteSpace: "pre-wrap",
-                              maxHeight: "300px",
-                              overflowY: "auto",
-                            }}
-                          >
-                            {note.content}
-                          </Typography>
-                        </Box>
-
-                        {/* Action Buttons */}
-                        <Box
-                          sx={{
-                            position: "absolute",
-                            bottom: 10,
-                            right: 10,
-                            display: "flex",
-                            gap: 1,
-                            zIndex: 1,
-                            backgroundColor: theme.palette.background.paper,
-                            padding: "8px",
-                            borderRadius: "4px",
+                            bgcolor: theme.palette.background.paper,
                             boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                            color: theme.palette.primary.main,
+                            "&:hover": {
+                              bgcolor: theme.palette.primary.light,
+                              color: "#fff",
+                            },
                           }}
+                          onClick={() => handleCopyNote(note.content)}
                         >
-                          <IconButton
-                            size="small"
-                            sx={{
-                              bgcolor: theme.palette.background.paper,
-                              boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                              color: theme.palette.primary.main,
-                              "&:hover": {
-                                bgcolor: theme.palette.primary.light,
-                                color: "#fff",
-                              },
-                            }}
-                            onClick={() => handleCopyNote(note.content)}
-                          >
-                            <ContentCopyIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            sx={{
-                              bgcolor: theme.palette.background.paper,
-                              boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                              color: theme.palette.primary.main,
-                              "&:hover": {
-                                bgcolor: theme.palette.primary.light,
-                                color: "#fff",
-                              },
-                            }}
-                          >
-                            <ImageIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            sx={{
-                              bgcolor: theme.palette.background.paper,
-                              boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                              color: theme.palette.primary.main,
-                              "&:hover": {
-                                bgcolor: theme.palette.primary.light,
-                                color: "#fff",
-                              },
-                            }}
-                            onClick={() => handleEditNote(note.id)}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            sx={{
-                              bgcolor: theme.palette.background.paper,
-                              boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                              color: theme.palette.error.main,
-                              "&:hover": {
-                                bgcolor: theme.palette.error.light,
-                                color: "#fff",
-                              },
-                            }}
-                            onClick={() => handleDeleteConfirm(note.id)}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Box>
-
-                        {/* Card Type Label */}
-                        <Box
+                          <ContentCopyIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
                           sx={{
-                            position: "absolute",
-                            bottom: 10,
-                            left: 10,
-                            zIndex: 1,
-                            padding: "0 12px",
-                            borderRadius: "4px",
+                            bgcolor: theme.palette.background.paper,
                             boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                            fontSize: "14px",
-                            height: "30px",
-                            lineHeight: "28px",
-                            color:
-                              theme.palette.mode === "light"
-                                ? "#2e83fb"
-                                : "#2e83fb",
-                            backgroundColor:
-                              theme.palette.mode === "light"
-                                ? "#ecf5ff"
-                                : "#1e1e2d",
-                            border: `1px solid ${
-                              theme.palette.mode === "light"
-                                ? "#d9ecff"
-                                : "#409eff"
-                            }`,
+                            color: theme.palette.primary.main,
+                            "&:hover": {
+                              bgcolor: theme.palette.primary.light,
+                              color: "#fff",
+                            },
                           }}
                         >
-                          Note
-                        </Box>
+                          <ImageIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          sx={{
+                            bgcolor: theme.palette.background.paper,
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                            color: theme.palette.primary.main,
+                            "&:hover": {
+                              bgcolor: theme.palette.primary.light,
+                              color: "#fff",
+                            },
+                          }}
+                          onClick={() => handleEditNote(note.id)}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          sx={{
+                            bgcolor: theme.palette.background.paper,
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                            color: theme.palette.error.main,
+                            "&:hover": {
+                              bgcolor: theme.palette.error.light,
+                              color: "#fff",
+                            },
+                          }}
+                          onClick={() => handleDeleteConfirm(note.id)}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
                       </Box>
-                    )}
-                  </Paper>
-                ))}
-              </Box>
+
+                      {/* Card Type Label */}
+                      <Box
+                        sx={{
+                          position: "absolute",
+                          bottom: 10,
+                          left: 10,
+                          zIndex: 1,
+                          padding: "0 12px",
+                          borderRadius: "4px",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                          fontSize: "14px",
+                          height: "30px",
+                          lineHeight: "28px",
+                          color:
+                            theme.palette.mode === "light"
+                              ? "#2e83fb"
+                              : "#2e83fb",
+                          backgroundColor:
+                            theme.palette.mode === "light"
+                              ? "#ecf5ff"
+                              : "#1e1e2d",
+                          border: `1px solid ${
+                            theme.palette.mode === "light"
+                              ? "#d9ecff"
+                              : "#409eff"
+                          }`,
+                        }}
+                      >
+                        Note
+                      </Box>
+                    </Box>
+                  )}
+                </Paper>
+              ))}
+
+              {/* Force Graph */}
+              {showForceGraph && (
+                <Box sx={{ mb: 3, mt: 2 }}>
+                  <ForceGraph
+                    content={
+                      isPDF
+                        ? pdfText
+                        : transcriptSegments
+                            .map((segment) => segment.text)
+                            .join(" ")
+                    }
+                    type={isPDF ? "pdf" : "video"}
+                    onError={(error) => {
+                      console.error("Force Graph Error:", error);
+                    }}
+                  />
+                </Box>
+              )}
+
+              {/* Mind Map - Add at the end */}
+              {showMindMap && (
+                <Box
+                  ref={mindMapRef}
+                  sx={{
+                    width: "100%",
+                    maxWidth: "100%",
+                  }}
+                >
+                  <MindMap
+                    content={
+                      isPDF
+                        ? pdfText
+                        : transcriptSegments
+                            .map((segment) => segment.text)
+                            .join(" ")
+                    }
+                    type={isPDF ? "pdf" : "video"}
+                    onError={(error) => console.error("MindMap error:", error)}
+                    onDelete={() => setShowMindMap(false)}
+                  />
+                </Box>
+              )}
             </Box>
           </Grid>
         </Grid>
