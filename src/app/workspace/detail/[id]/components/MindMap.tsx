@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Box,
   CircularProgress,
@@ -16,6 +16,8 @@ import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import mermaid from "mermaid";
+import OpenAI from "openai";
+import summaryPrompts from "@/utils/summaryPrompts.json";
 
 interface MindMapProps {
   content: string;
@@ -24,117 +26,238 @@ interface MindMapProps {
   onDelete?: () => void;
 }
 
-export default function MindMap({
+interface MindMapNode {
+  level: number;
+  text: string;
+  children: MindMapNode[];
+}
+
+const MindMap: React.FC<MindMapProps> = ({
   content,
   type,
   onError,
   onDelete,
-}: MindMapProps) {
-  const [loading, setLoading] = useState(true);
+}) => {
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(type === "pdf" ? 1.5 : 1.2);
   const [containerHeight, setContainerHeight] = useState<number>(600);
+  const [panPosition, setPanPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const mindmapRef = useRef<HTMLDivElement>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const theme = useTheme();
 
-  const updateContainerHeight = useCallback(() => {
-    if (mindmapRef.current) {
-      const svgElement = mindmapRef.current.querySelector("svg");
-      if (svgElement) {
-        const svgRect = svgElement.getBoundingClientRect();
-        const minHeight = 600;
-        const padding = 120;
-        const calculatedHeight = svgRect.height * zoom + padding;
-        const newHeight = Math.max(minHeight, calculatedHeight);
+  // Initialize OpenAI client
+  const openai = new OpenAI({
+    apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
+    dangerouslyAllowBrowser: true,
+  });
 
-        if (Math.abs(newHeight - containerHeight) > 50) {
-          setContainerHeight(newHeight);
-        }
+  const sanitizeText = (text: string) => {
+    return text
+      .replace(/[()[\]{}]/g, "") // Remove parentheses and brackets
+      .replace(/[^a-zA-Z0-9\s-]/g, "") // Remove special characters except hyphen
+      .trim();
+  };
+
+  const optimizeLabel = (text: string) => {
+    // Remove dates unless they're critical
+    const withoutDates = text.replace(/\d{4}(-\d{2})?(-\d{2})?/g, "");
+    // Remove redundant words
+    const withoutRedundancy = withoutDates
+      .replace(/\b(the|a|an|and|or|but|in|on|at|to|for|of|with|by)\b/gi, "")
+      .trim();
+    // Limit to 7 words
+    const words = withoutRedundancy.split(/\s+/);
+    return words.slice(0, 7).join(" ");
+  };
+
+  const parseMarkdownToNodes = (markdown: string): MindMapNode[] => {
+    const lines = markdown.split("\n").filter((line) => line.trim());
+    const root: MindMapNode = { level: 0, text: "", children: [] };
+    const stack: MindMapNode[] = [root];
+
+    for (const line of lines) {
+      const match = line.match(/^(#+)\s+(.+)$/);
+      if (!match) continue;
+
+      const [, hashes, text] = match;
+      const level = hashes.length;
+      const node: MindMapNode = {
+        level,
+        text: optimizeLabel(sanitizeText(text)),
+        children: [],
+      };
+
+      // Find the appropriate parent
+      while (stack.length > 1 && stack[stack.length - 1].level >= level) {
+        stack.pop();
       }
-    }
-  }, [zoom, containerHeight]);
 
-  useEffect(() => {
-    const processContent = async () => {
+      // Add to parent's children
+      stack[stack.length - 1].children.push(node);
+      stack.push(node);
+    }
+
+    return root.children;
+  };
+
+  const generateMermaidSyntax = (nodes: MindMapNode[]): string => {
+    const buildNode = (node: MindMapNode, indent: string = ""): string => {
+      // Ensure node has text content
+      const nodeText = node.text.trim() || "Untitled";
+      let result = `${indent}${
+        node.level === 1 ? "root" : "--"
+      }[${nodeText}]\n`;
+
+      // Add children with increased indentation
+      for (const child of node.children) {
+        result += buildNode(child, indent + "  ");
+      }
+
+      return result;
+    };
+
+    const rootNode = nodes[0];
+    if (!rootNode) return "";
+
+    return `mindmap\n${buildNode(rootNode)}`;
+  };
+
+  // Add pan handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button === 0) {
+      // Left click only
+      setIsDragging(true);
+      setDragStart({
+        x: e.clientX - panPosition.x,
+        y: e.clientY - panPosition.y,
+      });
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging) {
+      const newX = e.clientX - dragStart.x;
+      const newY = e.clientY - dragStart.y;
+      setPanPosition({ x: newX, y: newY });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const processContent = async () => {
+    try {
+      console.log("[MindMap] Starting content processing");
+      console.log("[MindMap] Content type:", type);
+      console.log("[MindMap] Content length:", content?.length);
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4-turbo-preview",
+        messages: [
+          {
+            role: "system",
+            content: summaryPrompts["mm-text"].systemPrompt,
+          },
+          {
+            role: "user",
+            content: summaryPrompts["mm-text"].userPrompt.replace(
+              "{transcript}",
+              content
+            ),
+          },
+        ],
+      });
+
+      const mindmapContent = response.choices[0].message.content;
+      if (!mindmapContent) {
+        throw new Error("No content returned from OpenAI");
+      }
+
+      // Parse the markdown into nodes
+      const nodes = parseMarkdownToNodes(mindmapContent);
+
+      // Generate Mermaid syntax
+      const mindmapSyntax = generateMermaidSyntax(nodes);
+      console.log("[MindMap] Generated syntax:", mindmapSyntax);
+
+      // Initialize mermaid with proper config
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: theme.palette.mode === "dark" ? "dark" : "default",
+        securityLevel: "loose",
+        mindmap: {
+          padding: 40,
+          useMaxWidth: true,
+        },
+      });
+
+      // Clear previous content
+      if (mindmapRef.current) {
+        mindmapRef.current.innerHTML = "";
+      }
+
       try {
-        let sections: string[] = [];
-        if (type === "pdf") {
-          sections = content
-            .split(/(?:Chapter|Section)\s+\d+:?/i)
-            .filter((section) => section.trim().length > 0)
-            .slice(0, 12);
-        } else {
-          sections = content
-            .split(/\d{2}:\d{2}/)
-            .filter((section) => section.trim().length > 0)
-            .slice(0, 12);
+        // Generate a valid ID for the mindmap
+        const diagramId = `mindmap-${Math.random()
+          .toString(36)
+          .substring(2, 15)}`;
+
+        // Create a temporary container with the valid ID
+        const tempContainer = document.createElement("div");
+        tempContainer.id = diagramId;
+        if (mindmapRef.current) {
+          mindmapRef.current.appendChild(tempContainer);
         }
 
-        const cleanSections = sections.map((section) => {
-          let cleaned = section
-            .trim()
-            .split(".")[0]
-            .replace(/[\[\]()]/g, "")
-            .replace(/[^a-zA-Z0-9\s]/g, "")
-            .trim();
-
-          cleaned = cleaned.slice(0, 40) || "Section";
-          return cleaned;
-        });
-
-        const mindmap = `mindmap
-  root((${type === "pdf" ? "Document" : "Video"} Summary))
-    Main Points
-${cleanSections
-  .slice(0, 4)
-  .map((section) => `      ${section}`)
-  .join("\n")}
-    Key Details
-${cleanSections
-  .slice(4, 8)
-  .map((section) => `      ${section}`)
-  .join("\n")}
-    Examples
-${cleanSections
-  .slice(8)
-  .map((section) => `      ${section}`)
-  .join("\n")}`;
-
-        mermaid.initialize({
-          startOnLoad: false,
-          theme: "default",
-          securityLevel: "loose",
-          mindmap: {
-            padding: 40,
-            useMaxWidth: true,
-          },
-        });
-
-        const { svg } = await mermaid.render("mindmap-svg", mindmap);
+        const { svg } = await mermaid.render(diagramId, mindmapSyntax);
 
         if (mindmapRef.current) {
           mindmapRef.current.innerHTML = svg;
           const svgElement = mindmapRef.current.querySelector("svg");
           if (svgElement) {
+            // Set initial SVG properties
             svgElement.style.width = "100%";
             svgElement.style.height = "auto";
             svgElement.style.minHeight = "500px";
             svgElement.style.maxHeight = "none";
-            svgElement.style.transform = `scale(${zoom})`;
-            svgElement.style.transformOrigin = "center center";
-            svgElement.style.transition = "transform 0.3s ease";
 
-            const bbox = svgElement.getBBox();
-            const padding = 40;
-            svgElement.setAttribute(
-              "viewBox",
-              `${bbox.x - padding} ${bbox.y - padding} ${
-                bbox.width + padding * 2
-              } ${bbox.height + padding * 2}`
-            );
-            svgElement.setAttribute("preserveAspectRatio", "xMidYMid meet");
+            // Create a wrapper div for zooming and panning
+            const wrapper = document.createElement("div");
+            wrapper.style.width = "100%";
+            wrapper.style.height = "100%";
+            wrapper.style.display = "flex";
+            wrapper.style.justifyContent = "center";
+            wrapper.style.alignItems = "center";
+            wrapper.style.overflow = "visible";
+            wrapper.style.transform = `scale(${zoom}) translate(${panPosition.x}px, ${panPosition.y}px)`;
+            wrapper.style.transformOrigin = "center center";
+            wrapper.style.transition = "transform 0.3s ease";
+            wrapper.style.cursor = "grab";
 
+            // Move SVG into wrapper
+            mindmapRef.current.innerHTML = "";
+            wrapper.appendChild(svgElement);
+            mindmapRef.current.appendChild(wrapper);
+
+            // Update container height based on SVG size
+            const updateHeight = () => {
+              const bbox = svgElement.getBoundingClientRect();
+              const minHeight = 600;
+              const padding = 120;
+              const calculatedHeight = bbox.height * zoom + padding;
+              const newHeight = Math.max(minHeight, calculatedHeight);
+
+              if (Math.abs(newHeight - containerHeight) > 50) {
+                setContainerHeight(newHeight);
+              }
+            };
+
+            // Set up resize observer
             if (resizeObserverRef.current) {
               resizeObserverRef.current.disconnect();
             }
@@ -142,56 +265,119 @@ ${cleanSections
             let resizeTimeout: NodeJS.Timeout;
             resizeObserverRef.current = new ResizeObserver(() => {
               clearTimeout(resizeTimeout);
-              resizeTimeout = setTimeout(() => {
-                requestAnimationFrame(updateContainerHeight);
-              }, 250);
+              resizeTimeout = setTimeout(updateHeight, 250);
             });
 
             resizeObserverRef.current.observe(svgElement);
-
-            setTimeout(() => {
-              updateContainerHeight();
-              setLoading(false);
-            }, 250);
+            updateHeight();
           }
         }
-      } catch (err) {
-        setError((err as Error).message);
-        if (onError) {
-          onError((err as Error).message);
-        }
-        setLoading(false);
+      } catch (renderError) {
+        console.error("[MindMap] Render error:", renderError);
+        throw new Error("Failed to render mind map");
       }
-    };
 
+      setLoading(false);
+    } catch (err) {
+      console.error("[MindMap] Error processing content:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "An error occurred";
+      setError(errorMessage);
+      if (onError) {
+        onError(errorMessage);
+      }
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     processContent();
-
     return () => {
       if (resizeObserverRef.current) {
         resizeObserverRef.current.disconnect();
       }
     };
-  }, [content, type, onError, zoom, updateContainerHeight]);
+  }, [content, type]);
 
-  const handleDownload = () => {
+  // Update zoom effect to include pan position
+  useEffect(() => {
+    if (mindmapRef.current) {
+      const wrapper = mindmapRef.current.querySelector("div");
+      if (wrapper) {
+        wrapper.style.transform = `scale(${zoom}) translate(${panPosition.x}px, ${panPosition.y}px)`;
+      }
+    }
+  }, [zoom, panPosition]);
+
+  const handleDownload = async () => {
     const svg = document.querySelector(".mermaid svg");
-    if (svg) {
+    if (!svg) return;
+
+    try {
+      // Create a canvas with 2x resolution for better quality
+      const canvas = document.createElement("canvas");
+      const scale = 2;
+      canvas.width = svg.clientWidth * scale;
+      canvas.height = svg.clientHeight * scale;
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) throw new Error("Could not get canvas context");
+
+      // Create a Blob from the SVG
       const svgData = new XMLSerializer().serializeToString(svg);
-      const blob = new Blob([svgData], { type: "image/svg+xml" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "mindmap.svg";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      const svgBlob = new Blob([svgData], {
+        type: "image/svg+xml;charset=utf-8",
+      });
+      const URL = window.URL || window.webkitURL || window;
+      const svgUrl = URL.createObjectURL(svgBlob);
+
+      // Create an image from the SVG
+      const img = new Image();
+      img.onload = () => {
+        // Set background to white for better visibility
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw the image scaled up
+        ctx.scale(scale, scale);
+        ctx.drawImage(img, 0, 0);
+
+        // Convert to PNG and download
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `mindmap-${
+              new Date().toISOString().split("T")[0]
+            }.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }
+        }, "image/png");
+      };
+      img.src = svgUrl;
+    } catch (error) {
+      console.error("Error downloading mind map:", error);
     }
   };
 
-  const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.1, 2));
-  const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.1, 0.5));
-  const handleResetZoom = () => setZoom(1);
+  const handleZoomIn = () =>
+    setZoom((prev) => {
+      const step = prev >= 2 ? 0.25 : 0.1; // Larger steps at higher zoom levels
+      return Math.min(prev + step, 5); // Increased max zoom to 5x
+    });
+  const handleZoomOut = () =>
+    setZoom((prev) => {
+      const step = prev > 2 ? 0.25 : 0.1; // Matching step size for zooming out
+      return Math.max(prev - step, 0.5);
+    });
+  const handleResetZoom = () => {
+    setZoom(type === "pdf" ? 1.5 : 1.2);
+    setPanPosition({ x: 0, y: 0 });
+  };
 
   return (
     <Paper
@@ -221,6 +407,10 @@ ${cleanSections
       <Box
         ref={mindmapRef}
         id="mindmap"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
         sx={{
           width: "100%",
           height: "calc(100% - 60px)",
@@ -229,6 +419,7 @@ ${cleanSections
           justifyContent: "center",
           alignItems: "center",
           overflow: "visible",
+          cursor: isDragging ? "grabbing" : "grab",
           "& svg": {
             maxWidth: "100%",
             height: "auto",
@@ -294,6 +485,7 @@ ${cleanSections
         <Box sx={{ display: "flex", gap: 1 }}>
           <IconButton
             onClick={handleDownload}
+            title="Download as PNG"
             sx={{
               bgcolor: theme.palette.background.paper,
               color: theme.palette.primary.main,
@@ -304,6 +496,22 @@ ${cleanSections
             }}
           >
             <DownloadIcon />
+          </IconButton>
+          <IconButton
+            onClick={() => handleDownload("svg")}
+            title="Download as SVG"
+            sx={{
+              bgcolor: theme.palette.background.paper,
+              color: theme.palette.primary.main,
+              "&:hover": {
+                bgcolor: theme.palette.primary.light,
+                color: "#fff",
+              },
+            }}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12.8 6.4c-.4.4-1.2.4-1.6 0-.4-.4-.4-1.2 0-1.6l3.2-3.2c.4-.4 1.2-.4 1.6 0l3.2 3.2c.4.4.4 1.2 0 1.6-.4.4-1.2.4-1.6 0L16 4.8V16c0 .7-.6 1.3-1.3 1.3-.7 0-1.3-.6-1.3-1.3V4.8l-1.6 1.6zM5 19h14c.6 0 1 .4 1 1s-.4 1-1 1H5c-.6 0-1-.4-1-1s.4-1 1-1z" />
+            </svg>
           </IconButton>
           {onDelete && (
             <IconButton
@@ -324,4 +532,6 @@ ${cleanSections
       </Box>
     </Paper>
   );
-}
+};
+
+export default MindMap;

@@ -72,7 +72,7 @@ import ImageIcon from "@mui/icons-material/Image";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/esm/Page/AnnotationLayer.css";
 import "react-pdf/dist/esm/Page/TextLayer.css";
-import { PDFViewer } from "./components/PDFViewer.tsx";
+import { PDFViewer } from "./components/PDFViewer";
 import { extractPdfText } from "@/utils/pdfUtils";
 import summaryPrompts from "@/utils/summaryPrompts.json";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
@@ -1797,6 +1797,22 @@ export default function VideoDetailsPage() {
   }, [isPDF, pdfUrl]);
 
   const handleMindMapClick = () => {
+    console.log("[Page] MindMap button clicked");
+    console.log("[Page] Content type:", isPDF ? "PDF" : "Video");
+    if (isPDF) {
+      console.log("[Page] PDF text length:", pdfText?.length);
+      console.log(
+        "[Page] PDF text preview:",
+        pdfText?.substring(0, 200) + "..."
+      );
+    } else {
+      console.log(
+        "[Page] Transcript segments count:",
+        transcriptSegments?.length
+      );
+      console.log("[Page] First transcript segment:", transcriptSegments?.[0]);
+    }
+
     if (showMindMap) {
       // If mindmap exists, scroll to it
       mindMapRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -2357,16 +2373,27 @@ export default function VideoDetailsPage() {
                 <IconButton
                   onClick={handleMindMapClick}
                   sx={{
-                    bgcolor: theme.palette.background.paper,
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                    color: showMindMap
+                    bgcolor: showMindMap
                       ? theme.palette.primary.main
-                      : theme.palette.text.secondary,
+                      : "transparent",
+                    color: showMindMap
+                      ? theme.palette.common.white
+                      : theme.palette.primary.main,
                     "&:hover": {
-                      bgcolor: theme.palette.primary.light,
-                      color: "#fff",
+                      bgcolor: showMindMap
+                        ? theme.palette.primary.dark
+                        : theme.palette.primary.light,
+                    },
+                    "&:disabled": {
+                      bgcolor: "transparent",
+                      color: theme.palette.text.disabled,
                     },
                   }}
+                  disabled={
+                    isPDF
+                      ? !pdfText || pdfText.length === 0
+                      : !transcriptSegments || transcriptSegments.length === 0
+                  }
                 >
                   <AccountTreeIcon />
                 </IconButton>
@@ -2871,6 +2898,18 @@ export default function VideoDetailsPage() {
                     maxWidth: "100%",
                   }}
                 >
+                  {(() => {
+                    console.log(
+                      "[Page] Rendering MindMap with content type:",
+                      isPDF ? "pdf" : "video"
+                    );
+                    console.log("[Page] PDF text length:", pdfText?.length);
+                    console.log(
+                      "[Page] Transcript segments:",
+                      transcriptSegments?.length
+                    );
+                    return null;
+                  })()}
                   <MindMap
                     content={
                       isPDF
@@ -2880,7 +2919,9 @@ export default function VideoDetailsPage() {
                             .join(" ")
                     }
                     type={isPDF ? "pdf" : "video"}
-                    onError={(error) => console.error("MindMap error:", error)}
+                    onError={(error: string) =>
+                      console.error("MindMap error:", error)
+                    }
                     onDelete={() => setShowMindMap(false)}
                   />
                 </Box>
@@ -2969,6 +3010,83 @@ export default function VideoDetailsPage() {
             </Button>
             <Button onClick={confirmDelete} variant="contained" color="error">
               Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Summary Menu */}
+        <Menu
+          anchorEl={summaryMenuAnchorEl}
+          open={Boolean(summaryMenuAnchorEl)}
+          onClose={handleSummaryMenuClose}
+          PaperProps={{
+            sx: {
+              maxHeight: "80vh",
+              overflowY: "auto",
+              width: 250,
+            },
+          }}
+        >
+          {Object.entries(summaryPrompts as SummaryPrompts).map(
+            ([key, value]) => (
+              <MenuItem
+                key={key}
+                onClick={() => handleSummaryTemplate(key)}
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  py: 1,
+                }}
+              >
+                <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
+                  {value.title}
+                </Typography>
+              </MenuItem>
+            )
+          )}
+          <Divider />
+          <MenuItem onClick={handleCustomPrompt}>
+            <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
+              Custom Prompt
+            </Typography>
+          </MenuItem>
+        </Menu>
+
+        {/* Custom Prompt Dialog */}
+        <Dialog
+          open={showCustomPromptInput}
+          onClose={handleCancelCustomPrompt}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>Custom Summary Prompt</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Title (Optional)"
+              fullWidth
+              variant="outlined"
+              value={customPromptTitle}
+              onChange={(e) => setCustomPromptTitle(e.target.value)}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              margin="dense"
+              label="Prompt"
+              fullWidth
+              multiline
+              rows={4}
+              variant="outlined"
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCancelCustomPrompt}>Cancel</Button>
+            <Button onClick={handleSubmitCustomPrompt} variant="contained">
+              Submit
             </Button>
           </DialogActions>
         </Dialog>

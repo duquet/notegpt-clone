@@ -52,3 +52,53 @@ a {
 button {
   cursor: pointer;
 }
+
+/* Mermaid Mind Map Styles */
+.mermaid {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: auto;
+}
+
+.mermaid svg {
+  max-width: 100%;
+  height: auto;
+  padding: 1rem;
+}
+
+/* Enhance mind map node styles */
+.mermaid .mindmap-node rect {
+  rx: 5px;
+  ry: 5px;
+}
+
+.mermaid .mindmap-node text {
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.mermaid .mindmap-node.main text {
+  font-weight: 600;
+  font-size: 1.2em;
+}
+
+.mermaid .mindmap-node.subtopic text {
+  font-weight: 500;
+}
+
+.mermaid .mindmap-edge {
+  stroke-width: 2px;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .mermaid .mindmap-node text {
+    fill: #e5e7eb;
+  }
+
+  .mermaid .mindmap-edge {
+    stroke: #6b7280;
+  }
+}
