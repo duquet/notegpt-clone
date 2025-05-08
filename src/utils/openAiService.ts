@@ -13,6 +13,7 @@ export interface SummaryTemplateOptions {
   templateType?: string;
   customPrompt?: string;
   customTitle?: string;
+  systemPrompt?: string;
 }
 
 /**
@@ -27,6 +28,7 @@ export async function summarizeTranscript(transcript: string, options?: string |
     let templateType = 'default';
     let customPrompt = '';
     let customTitle = '';
+    let passedSystemPrompt: string | undefined = undefined;
     
     if (typeof options === 'string') {
       // Backward compatibility for string prompt
@@ -36,26 +38,30 @@ export async function summarizeTranscript(transcript: string, options?: string |
       templateType = options.templateType || 'default';
       customPrompt = options.customPrompt || '';
       customTitle = options.customTitle || '';
+      passedSystemPrompt = options.systemPrompt;
     }
     
     // Get the appropriate prompts from the JSON file
-    const promptTemplate = customPrompt 
+    const baseTemplate = customPrompt 
       ? { 
           title: customTitle || 'Custom Summary',
-          systemPrompt: "You are a helpful assistant that summarizes content according to specific instructions. Format your response in Markdown with appropriate headings, paragraphs, and bullet points as needed.",
+          systemPrompt: passedSystemPrompt || "You are a helpful assistant that summarizes content according to specific instructions. Format your response in Markdown with appropriate headings, paragraphs, and bullet points as needed.",
           userPrompt: customPrompt + ":\n\n{transcript}"
         }
       : (summaryPrompts[templateType as keyof typeof summaryPrompts] || summaryPrompts.default);
+
+    // If not a custom prompt, check if a system prompt was passed to override the template's default
+    const finalSystemPrompt = !customPrompt && passedSystemPrompt ? passedSystemPrompt : baseTemplate.systemPrompt;
     
     // Replace {transcript} in the user prompt with the actual transcript
-    const userPrompt = promptTemplate.userPrompt.replace('{transcript}', transcript);
+    const userPrompt = baseTemplate.userPrompt.replace('{transcript}', transcript);
     
     const response = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [
         {
           role: "system",
-          content: promptTemplate.systemPrompt
+          content: finalSystemPrompt
         },
         {
           role: "user",

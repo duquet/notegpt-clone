@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import YouTube, {
   YouTubePlayer,
   YouTubeProps,
@@ -72,7 +72,8 @@ import ImageIcon from "@mui/icons-material/Image";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/esm/Page/AnnotationLayer.css";
 import "react-pdf/dist/esm/Page/TextLayer.css";
-import { PDFViewer } from "./components/PDFViewer.tsx";
+// import { PDFViewer } from "./components/PDFViewer.tsx";
+import { PDFViewer } from "@/app/workspace/detail/[id]/components/PDFViewer";
 import { extractPdfText } from "@/utils/pdfUtils";
 import summaryPrompts from "@/utils/summaryPrompts.json";
 
@@ -477,10 +478,10 @@ const FlashcardCarousel: React.FC<FlashcardCarouselProps> = ({
 export default function VideoDetailsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const router = useRouter(); // Initialize router
   const type = searchParams.get("type");
   const rawPdfUrl = searchParams.getAll("pdfUrl");
   const pdfUrl = Array.isArray(rawPdfUrl) ? rawPdfUrl[0] : rawPdfUrl;
-  console.log("PDF URL for Document:", pdfUrl);
   const isPDF = type === "pdf" && !!pdfUrl;
   const { recentVideos, updateVideoTitle } = useAppContext();
   const [tabValue, setTabValue] = useState(0);
@@ -574,8 +575,18 @@ export default function VideoDetailsPage() {
   const [pdfSummaryLoading, setPdfSummaryLoading] = useState(false);
   const [pdfSummaryError, setPdfSummaryError] = useState<string | null>(null);
 
-  // Fetch video details on component mount
+  // Fetch video details on component mount OR set PDF title
   useEffect(() => {
+    if (isPDF) {
+      // It's a PDF, set a title (e.g., from URL or a default)
+      // Extract filename from pdfUrl
+      const filename = pdfUrl?.split('/').pop()?.replace('.pdf', '') || 'PDF Document';
+      setVideoTitle(filename); // Use the same state variable
+      setLoading(false); // Ensure loading is stopped for PDF view
+      return;
+    }
+
+    // It's a video, proceed with fetching video details
     const fetchVideoDetails = async () => {
       // First try to get from recent videos history
       const savedVideo = recentVideos.find((video) => video.id === params.id);
@@ -587,20 +598,20 @@ export default function VideoDetailsPage() {
       } else {
         // If not in history, fetch from API
         try {
-          const videoDetails = await getYouTubeVideoDetails(params.id);
+          const videoDetails = await getYouTubeVideoDetails(params.id as string);
           if (videoDetails) {
             setVideoTitle(videoDetails.title);
             setEditedTitle(videoDetails.title);
           } else {
             // Use fallback if API call failed
-            const fallbackTitle = generateFallbackTitle(params.id);
+            const fallbackTitle = generateFallbackTitle(params.id as string);
             setVideoTitle(fallbackTitle);
             setEditedTitle(fallbackTitle);
           }
         } catch (error) {
           console.error("Error fetching video details:", error);
           setApiError(true);
-          const fallbackTitle = generateFallbackTitle(params.id);
+          const fallbackTitle = generateFallbackTitle(params.id as string);
           setVideoTitle(fallbackTitle);
           setEditedTitle(fallbackTitle);
         } finally {
@@ -672,7 +683,7 @@ export default function VideoDetailsPage() {
         playerCheckInterval.current = null;
       }
     };
-  }, [params.id, recentVideos]);
+  }, [params.id, recentVideos, isPDF, pdfUrl]); // Added pdfUrl dependency
 
   // Updated createTranscriptSegments function to be smarter with short videos
   const createTranscriptSegments = (
@@ -980,7 +991,7 @@ export default function VideoDetailsPage() {
     setIsEditingTitle(false);
 
     // Update the title throughout the application
-    updateVideoTitle(params.id, editedTitle);
+    updateVideoTitle(params.id as string, editedTitle);
   };
 
   const handleCancelEdit = () => {
@@ -1292,29 +1303,57 @@ export default function VideoDetailsPage() {
         let quizPrompt;
         if (isPDF) {
           // Use the PDF flashcard prompt from summaryPrompts
-          quizPrompt = summaryPrompts["pdf-flashcard"].userPrompt.replace("{content}", pdfText);
+          // The actual content for the user prompt isn't really needed if the system prompt handles it
+          // We mainly need the system prompt here.
+          quizPrompt = summaryPrompts["pdf-flashcard"].userPrompt; // Keep this simple or make it more specific if needed
         } else {
           // Use the video flashcard prompt
           quizPrompt = `Create an interactive quiz with flashcards based on this content. Generate 10-15 question-answer pairs that test understanding of the key concepts, facts, and insights. Return ONLY a valid JSON array with objects having this structure: { "question": "...", "answer": "...", "difficulty": "(easy|medium|hard)", "category": "..." }. Do NOT include markdown formatting or code blocks, just the raw JSON array: \n\n${fullContent}`;
         }
+        // Call summarizeTranscript, ensuring systemPrompt is passed for PDFs
         result = await summarizeTranscript(fullContent, {
           templateType: templateType,
-          customPrompt: quizPrompt,
+          customPrompt: quizPrompt, // This might be less important now
+          systemPrompt: isPDF ? summaryPrompts["pdf-flashcard"].systemPrompt : undefined // Pass the detailed system prompt for PDFs
         });
       } else {
-        // Regular approach for other templates
-        result = await summarizeTranscript(fullContent, prompt);
+        // Regular approach for other templates (including the initial PDF summary)
+        // Ensure system prompt is passed for default PDF summary too
+        const effectivePrompt = isPDF && templateType === 'default'
+          ? summaryPrompts["pdf-default"].userPrompt
+          : prompt;
+        result = await summarizeTranscript(fullContent, {
+          templateType: templateType,
+          customPrompt: effectivePrompt,
+          systemPrompt: isPDF ? summaryPrompts["pdf-default"].systemPrompt : undefined // Pass the detailed system prompt for PDFs
+        });
       }
 
-      if (templateType === "default") {
-        setMarkdownContent(result);
-        const sections = parseSummaryResponse(result, templateType);
-        setSummaryContent(sections.summary);
-        setKeyInsightsContent(sections.keyInsights);
-        setHighlightsContent(sections.highlights);
-        setConclusionContent(sections.conclusion);
-        if (!summaryCards.some((card) => card.type === "default")) {
+      // Add new card or update existing default card
           const cardId = `summary-${Date.now()}`;
+      const existingDefaultCardIndex = summaryCards.findIndex(card => card.type === 'default');
+
+      if (templateType === "default") {
+        // Handle default summary (update existing or add new)
+        setMarkdownContent(result); // Update main display area
+        // We might not need to parse sections for the main area anymore if using cards
+        // const sections = parseSummaryResponse(result, templateType);
+        // setSummaryContent(sections.summary);
+        // setKeyInsightsContent(sections.keyInsights);
+        // setHighlightsContent(sections.highlights);
+        // setConclusionContent(sections.conclusion);
+
+        if (existingDefaultCardIndex > -1) {
+          // Update existing default card
+          setSummaryCards(prevCards =>
+            prevCards.map((card, index) =>
+              index === existingDefaultCardIndex
+                ? { ...card, content: result, title: isPDF ? "PDF Summary" : "Summary" }
+                : card
+            )
+          );
+        } else {
+          // Add new default card if none exists
           setSummaryCards((prevCards) => [
             {
               id: cardId,
@@ -1322,27 +1361,24 @@ export default function VideoDetailsPage() {
               content: result,
               type: "default",
             },
-            ...prevCards,
+            ...prevCards.filter(card => card.type !== 'default'), // Ensure only one default card exists
           ]);
         }
-      } else {
-        const cardId = `summary-${Date.now()}`;
-        if (templateType === "quiz-flashcards") {
+      } else if (templateType === "quiz-flashcards") {
+        // Handle flashcards
           const flashcards = parseSummaryResponse(result, templateType);
           setSummaryCards((prevCards) => [
             ...prevCards,
             {
               id: cardId,
-              title:
-                templateType === "quiz-flashcards"
-                  ? "AI Flash Cards"
-                  : title || "Interactive Quiz Cards",
-              content: result,
+            title: title || (isPDF ? "PDF Flash Cards" : "AI Flash Cards"),
+            content: result, // Store raw response for potential debugging/display
               type: templateType,
-              flashcards: flashcards,
+            flashcards: flashcards, // Store parsed flashcards
             },
           ]);
         } else {
+        // Handle other custom templates
           setSummaryCards((prevCards) => [
             ...prevCards,
             {
@@ -1352,7 +1388,6 @@ export default function VideoDetailsPage() {
               type: templateType,
             },
           ]);
-        }
       }
     } catch (error) {
       console.error("Error generating summary:", error);
@@ -1636,7 +1671,8 @@ export default function VideoDetailsPage() {
     const newNote = {
       id: uuidv4(),
       content: "",
-      timestamp: currentVideoTime,
+      // Only set timestamp if it's NOT a PDF
+      timestamp: isPDF ? 0 : currentVideoTime,
       isEditing: true,
     };
 
@@ -1749,9 +1785,9 @@ export default function VideoDetailsPage() {
           // Prepare prompt
           const promptTemplate = summaryPrompts["pdf-default"].userPrompt;
           const prompt = promptTemplate
-            .replace("{title}", params.id || "Untitled Document")
-            .replace("{pageCount}", String(pages.length))
-            .replace("{full extracted PDF text}", text);
+            .replace(/\{title\}/g, String(params.id || "Untitled Document"))
+            .replace(/\{pageCount\}/g, String(pages.length))
+            .replace(/\{full extracted PDF text\}/g, String(text));
           // Call OpenAI or summary API
           return summarizeTranscript(text, prompt);
         })
@@ -1778,15 +1814,60 @@ export default function VideoDetailsPage() {
     }
   }, [isPDF, pdfUrl]);
 
+  // --- Add Handler for Title Changes from PDFViewer --- 
+  const handlePdfTitleChange = (newTitle: string) => {
+    setVideoTitle(newTitle);
+    // Persist the change if needed (e.g., update context, database)
+    // For now, just update local state
+    console.log("PDF title updated in parent:", newTitle);
+  };
+
   return (
     <>
       <Box sx={{ p: 2, fontFamily: "Inter, sans-serif" }}>
         <Grid container spacing={0}>
           {/* Left Section */}
-          <Grid item xs={12} md={5}>
+          <Grid 
+            item 
+            xs={12} 
+            md={5}
+            sx={{
+              height: 'calc(100vh - 96px)', // Fixed height (64px navbar + 32px page padding)
+              display: 'flex',
+              flexDirection: 'column',
+              // p: isPDF ? 0 : 2, // Padding handled by PDFViewer wrapper or video content
+            }}
+          >
             {/* PDF or Video Player */}
             {isPDF ? (
-              <PDFViewer url={pdfUrl} />
+              <Box sx={{
+                flexGrow: 1, 
+                overflowY: "auto", 
+                width: "100%", 
+                display: "flex", 
+                flexDirection: "column",
+                "&::-webkit-scrollbar": {
+                  width: "8px",
+                },
+                "&::-webkit-scrollbar-track": {
+                  background: theme.palette.mode === 'dark' ? theme.palette.background.paper : '#2E2E2E',
+                  borderRadius: "4px",
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  background: theme.palette.mode === 'dark' ? theme.palette.grey[700] : '#555555',
+                  borderRadius: "4px",
+                  "&:hover": {
+                    background: theme.palette.mode === 'dark' ? theme.palette.grey[600] : '#777777',
+                  },
+                },
+              }}>
+                <PDFViewer
+                  url={pdfUrl}
+                  title={videoTitle}
+                  onBack={() => router.back()} 
+                  onTitleChange={handlePdfTitleChange}
+                />
+              </Box>
             ) : (
               // ...existing video player code...
               <>
@@ -1922,7 +2003,7 @@ export default function VideoDetailsPage() {
                     </Box>
                   ) : (
                     <YouTube
-                      videoId={params.id}
+                      videoId={params.id?.toString() ?? ''}
                       opts={opts}
                       onReady={handleReady}
                       onStateChange={handleStateChange}
@@ -2292,13 +2373,40 @@ export default function VideoDetailsPage() {
           </Grid>
 
           {/* Right Section */}
-          <Grid item xs={12} md={7}>
+          <Grid 
+            item 
+            xs={12} 
+            md={7}
+            sx={{
+              height: 'calc(100vh - 96px)', 
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
             <Box
               sx={{
                 p: 2,
+                flexGrow: 1, 
+                overflowY: 'auto', 
+                display: 'flex', 
+                flexDirection: 'column',
+                "&::-webkit-scrollbar": {
+                  width: "8px",
+                },
+                "&::-webkit-scrollbar-track": {
+                  background: theme.palette.mode === 'dark' ? theme.palette.background.paper : '#2E2E2E', 
+                  borderRadius: "4px",
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  background: theme.palette.mode === 'dark' ? theme.palette.grey[700] : '#555555', 
+                  borderRadius: "4px",
+                  "&:hover": {
+                    background: theme.palette.mode === 'dark' ? theme.palette.grey[600] : '#777777',
+                  },
+                },
               }}
             >
-              {/* Right Section Tabs */}
+              {/* Right Section Tabs and Action Buttons (existing structure) */}
               <Box
                 sx={{
                   display: "flex",
@@ -2319,9 +2427,10 @@ export default function VideoDetailsPage() {
                       size="small"
                       onClick={() => handleSummarize()}
                       disabled={
-                        isSummarizing ||
-                        transcriptLoading ||
-                        transcriptSegments.length === 0
+                        isSummarizing || // Always disable if any summary is running
+                        (isPDF
+                          ? !pdfText || pdfSummaryLoading // For PDF: disable if no text OR PDF summary is loading
+                          : transcriptLoading || translatedSegments.length === 0) // For Video: disable if transcript loading OR no segments
                       }
                       sx={{
                         height: "32px",
@@ -2716,9 +2825,10 @@ export default function VideoDetailsPage() {
                       size="small"
                       onClick={() => handleSummaryTemplate("quiz-flashcards")}
                       disabled={
-                        isSummarizing ||
-                        transcriptLoading ||
-                        transcriptSegments.length === 0
+                        isSummarizing || // Always disable if any summary is running
+                        (isPDF
+                          ? !pdfText || pdfSummaryLoading // For PDF: disable if no text OR PDF summary is loading
+                          : transcriptLoading || translatedSegments.length === 0) // For Video: disable if transcript loading OR no segments
                       }
                       sx={{
                         bgcolor: theme.palette.background.paper,
@@ -2779,7 +2889,9 @@ export default function VideoDetailsPage() {
                     },
                     "&::-webkit-scrollbar-thumb": {
                       background:
-                        theme.palette.mode === "light" ? "#D1D5DB" : "#4a4a5a",
+                        theme.palette.mode === "light"
+                          ? "#D1D5DB"
+                          : "#4a4a5a",
                       borderRadius: "3px",
                       "&:hover": {
                         background:
@@ -3566,6 +3678,8 @@ export default function VideoDetailsPage() {
                             mb: 2,
                           }}
                         >
+                          {/* Conditionally render timestamp ONLY for videos */}
+                          {!isPDF && (
                           <Typography
                             variant="body2"
                             component="div"
@@ -3584,6 +3698,7 @@ export default function VideoDetailsPage() {
                           >
                             {formatTime(note.timestamp)}
                           </Typography>
+                          )}
                           <Typography
                             variant="body1"
                             component="div"
