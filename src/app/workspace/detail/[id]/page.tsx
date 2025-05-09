@@ -1832,10 +1832,10 @@ export default function VideoDetailsPage() {
             xs={12} 
             md={5}
             sx={{
-              height: 'calc(100vh - 96px)', // Fixed height (64px navbar + 32px page padding)
+              height: 'calc(100vh - 96px)', 
               display: 'flex',
               flexDirection: 'column',
-              // p: isPDF ? 0 : 2, // Padding handled by PDFViewer wrapper or video content
+              bgcolor: theme.palette.mode === 'dark' ? theme.palette.background.default : theme.palette.grey[200],
             }}
           >
             {/* PDF or Video Player */}

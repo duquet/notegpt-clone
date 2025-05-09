@@ -13,6 +13,7 @@ import {
   Button,
   Menu,
   MenuItem,
+  useTheme,
 } from "@mui/material";
 import { Document, Page } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -43,6 +44,7 @@ interface PDFViewerProps {
 }
 
 export function PDFViewer({ url, onBack, title: initialTitle = "PDF Document", onTitleChange }: PDFViewerProps) {
+  const theme = useTheme();
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [pageInputValue, setPageInputValue] = useState<string>("1");
@@ -344,23 +346,16 @@ export function PDFViewer({ url, onBack, title: initialTitle = "PDF Document", o
     >
       {/* Top Controls - Redesigned */}
       <Box
-        sx={(theme) => ({
+        sx={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
           p: 1,
           borderBottom: 1,
           borderColor: "divider",
+          bgcolor: "background.paper",
           width: "100%",
-          position: "sticky", // Standard sticky property
-          top: 0,
-          zIndex: theme.zIndex.appBar, // Use a theme zIndex if available, or a number like 1100
-          backgroundColor: theme.palette.background.default, // Match theme background
-          // Fallback for older Safari if needed, though modern Safari supports 'sticky'
-          // '@supports (position: -webkit-sticky)': {
-          //   position: '-webkit-sticky',
-          // },
-        })}
+        }}
       >
         {/* Left Section (Back Arrow + PDF Icon) */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
@@ -627,7 +622,6 @@ export function PDFViewer({ url, onBack, title: initialTitle = "PDF Document", o
           flexDirection: "column",
           alignItems: "center",
           position: "relative",
-          zIndex: 1,
           width: "100%",
         }}
       >
@@ -675,7 +669,7 @@ export function PDFViewer({ url, onBack, title: initialTitle = "PDF Document", o
                         onLoadSuccess={onPageLoadSuccess}
             />
 
-                      {/* Per-page controls */}
+                      {/* Page-specific footer with controls */}
           <Box
             sx={{
               display: "flex",
@@ -683,10 +677,12 @@ export function PDFViewer({ url, onBack, title: initialTitle = "PDF Document", o
               alignItems: "center",
                           width: containerWidth > 20 ? containerWidth - 10 : "100%",
                           mt: 1,
-                          mb: 1
+                          mb: 1,
+                          p: 0,
+                          borderRadius: 1,
                         }}
                       >
-                        {/* Left section - empty for now */}
+                        {/* Left section - empty */}
                         <Box sx={{ flex: 1 }}></Box>
                         
                         {/* Center section - page number */}
