@@ -72,8 +72,7 @@ import ImageIcon from "@mui/icons-material/Image";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/esm/Page/AnnotationLayer.css";
 import "react-pdf/dist/esm/Page/TextLayer.css";
-// import { PDFViewer } from "./components/PDFViewer.tsx";
-import { PDFViewer } from "@/app/workspace/detail/[id]/components/PDFViewer";
+import PDFViewer from "@/app/workspace/detail/[id]/components/PDFViewer";
 import { extractPdfText } from "@/utils/pdfUtils";
 import summaryPrompts from "@/utils/summaryPrompts.json";
 
@@ -475,14 +474,101 @@ const FlashcardCarousel: React.FC<FlashcardCarouselProps> = ({
   );
 };
 
+// Add type definitions for performance entries
+interface LayoutShiftEntry extends PerformanceEntry {
+  value: number;
+  hadRecentInput: boolean;
+}
+
+interface FirstInputEntry extends PerformanceEntry {
+  processingStart: number;
+  startTime: number;
+}
+
+interface NetworkInformation {
+  effectiveType?: string;
+  downlink?: number;
+  rtt?: number;
+}
+
 export default function VideoDetailsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const router = useRouter(); // Initialize router
+  const router = useRouter();
   const type = searchParams.get("type");
   const rawPdfUrl = searchParams.getAll("pdfUrl");
   const pdfUrl = Array.isArray(rawPdfUrl) ? rawPdfUrl[0] : rawPdfUrl;
   const isPDF = type === "pdf" && !!pdfUrl;
+
+  // Add performance tracking
+  const pageLoadStartTime = useRef<number>(Date.now());
+
+  // Log initial render time
+  useEffect(() => {
+    const initialRenderTime = Date.now() - pageLoadStartTime.current;
+    console.log(
+      `[Performance] Page initial render time: ${initialRenderTime}ms`
+    );
+
+    // Start performance monitoring
+    const perfObserver = new PerformanceObserver((list) => {
+      list.getEntries().forEach((entry) => {
+        if (entry.entryType === "largest-contentful-paint") {
+          console.log(
+            `[Performance] Largest Contentful Paint: ${entry.startTime}ms`
+          );
+        }
+        if (entry.entryType === "layout-shift") {
+          const layoutShift = entry as LayoutShiftEntry;
+          console.log(
+            `[Performance] Cumulative Layout Shift: ${layoutShift.value}`
+          );
+        }
+        if (entry.entryType === "first-input") {
+          const firstInput = entry as FirstInputEntry;
+          console.log(
+            `[Performance] First Input Delay: ${
+              firstInput.processingStart - firstInput.startTime
+            }ms`
+          );
+        }
+      });
+    });
+
+    // Observe performance metrics
+    perfObserver.observe({
+      entryTypes: ["largest-contentful-paint", "layout-shift", "first-input"],
+    });
+
+    // Log network conditions if available
+    if ("connection" in navigator) {
+      const connection = (navigator as any).connection as NetworkInformation;
+      console.log("[Performance] Network conditions:", {
+        effectiveType: connection?.effectiveType,
+        downlink: connection?.downlink,
+        rtt: connection?.rtt,
+      });
+    }
+
+    return () => {
+      perfObserver.disconnect();
+      console.log(
+        `[Performance] Total page lifetime: ${
+          Date.now() - pageLoadStartTime.current
+        }ms`
+      );
+    };
+  }, []);
+
+  // Log when PDF/Video content starts and finishes loading
+  useEffect(() => {
+    if (isPDF) {
+      console.log("[Performance] Starting PDF content load");
+    } else {
+      console.log("[Performance] Starting video content load");
+    }
+  }, [isPDF]);
+
   const { recentVideos, updateVideoTitle } = useAppContext();
   const [tabValue, setTabValue] = useState(0);
   const [rightTabValue, setRightTabValue] = useState(0);
@@ -580,7 +666,8 @@ export default function VideoDetailsPage() {
     if (isPDF) {
       // It's a PDF, set a title (e.g., from URL or a default)
       // Extract filename from pdfUrl
-      const filename = pdfUrl?.split('/').pop()?.replace('.pdf', '') || 'PDF Document';
+      const filename =
+        pdfUrl?.split("/").pop()?.replace(".pdf", "") || "PDF Document";
       setVideoTitle(filename); // Use the same state variable
       setLoading(false); // Ensure loading is stopped for PDF view
       return;
@@ -598,7 +685,9 @@ export default function VideoDetailsPage() {
       } else {
         // If not in history, fetch from API
         try {
-          const videoDetails = await getYouTubeVideoDetails(params.id as string);
+          const videoDetails = await getYouTubeVideoDetails(
+            params.id as string
+          );
           if (videoDetails) {
             setVideoTitle(videoDetails.title);
             setEditedTitle(videoDetails.title);
@@ -879,13 +968,17 @@ export default function VideoDetailsPage() {
 
   // Handle YouTube player ready event
   const handleReady = (event: YouTubeEvent) => {
-    console.log("YouTube player ready");
+    console.log(
+      `[Performance] YouTube player ready: ${
+        Date.now() - pageLoadStartTime.current
+      }ms`
+    );
     playerRef.current = event.target;
 
     // Get and store video duration when player is ready
     try {
       const duration = playerRef.current.getDuration();
-      console.log("Video duration:", duration); // Debug log
+      console.log("[Performance] Video duration loaded:", duration);
 
       if (duration && !isNaN(duration)) {
         setVideoDuration(duration);
@@ -928,7 +1021,7 @@ export default function VideoDetailsPage() {
         }
       }
     } catch (error) {
-      console.error("Error getting video duration:", error);
+      console.error("[Performance] Error getting video duration:", error);
     }
   };
 
@@ -1314,24 +1407,31 @@ export default function VideoDetailsPage() {
         result = await summarizeTranscript(fullContent, {
           templateType: templateType,
           customPrompt: quizPrompt, // This might be less important now
-          systemPrompt: isPDF ? summaryPrompts["pdf-flashcard"].systemPrompt : undefined // Pass the detailed system prompt for PDFs
+          systemPrompt: isPDF
+            ? summaryPrompts["pdf-flashcard"].systemPrompt
+            : undefined, // Pass the detailed system prompt for PDFs
         });
       } else {
         // Regular approach for other templates (including the initial PDF summary)
         // Ensure system prompt is passed for default PDF summary too
-        const effectivePrompt = isPDF && templateType === 'default'
-          ? summaryPrompts["pdf-default"].userPrompt
-          : prompt;
+        const effectivePrompt =
+          isPDF && templateType === "default"
+            ? summaryPrompts["pdf-default"].userPrompt
+            : prompt;
         result = await summarizeTranscript(fullContent, {
           templateType: templateType,
           customPrompt: effectivePrompt,
-          systemPrompt: isPDF ? summaryPrompts["pdf-default"].systemPrompt : undefined // Pass the detailed system prompt for PDFs
+          systemPrompt: isPDF
+            ? summaryPrompts["pdf-default"].systemPrompt
+            : undefined, // Pass the detailed system prompt for PDFs
         });
       }
 
       // Add new card or update existing default card
-          const cardId = `summary-${Date.now()}`;
-      const existingDefaultCardIndex = summaryCards.findIndex(card => card.type === 'default');
+      const cardId = `summary-${Date.now()}`;
+      const existingDefaultCardIndex = summaryCards.findIndex(
+        (card) => card.type === "default"
+      );
 
       if (templateType === "default") {
         // Handle default summary (update existing or add new)
@@ -1345,10 +1445,14 @@ export default function VideoDetailsPage() {
 
         if (existingDefaultCardIndex > -1) {
           // Update existing default card
-          setSummaryCards(prevCards =>
+          setSummaryCards((prevCards) =>
             prevCards.map((card, index) =>
               index === existingDefaultCardIndex
-                ? { ...card, content: result, title: isPDF ? "PDF Summary" : "Summary" }
+                ? {
+                    ...card,
+                    content: result,
+                    title: isPDF ? "PDF Summary" : "Summary",
+                  }
                 : card
             )
           );
@@ -1361,33 +1465,33 @@ export default function VideoDetailsPage() {
               content: result,
               type: "default",
             },
-            ...prevCards.filter(card => card.type !== 'default'), // Ensure only one default card exists
+            ...prevCards.filter((card) => card.type !== "default"), // Ensure only one default card exists
           ]);
         }
       } else if (templateType === "quiz-flashcards") {
         // Handle flashcards
-          const flashcards = parseSummaryResponse(result, templateType);
-          setSummaryCards((prevCards) => [
-            ...prevCards,
-            {
-              id: cardId,
+        const flashcards = parseSummaryResponse(result, templateType);
+        setSummaryCards((prevCards) => [
+          ...prevCards,
+          {
+            id: cardId,
             title: title || (isPDF ? "PDF Flash Cards" : "AI Flash Cards"),
             content: result, // Store raw response for potential debugging/display
-              type: templateType,
+            type: templateType,
             flashcards: flashcards, // Store parsed flashcards
-            },
-          ]);
-        } else {
+          },
+        ]);
+      } else {
         // Handle other custom templates
-          setSummaryCards((prevCards) => [
-            ...prevCards,
-            {
-              id: cardId,
-              title: title || "Custom Summary",
-              content: result,
-              type: templateType,
-            },
-          ]);
+        setSummaryCards((prevCards) => [
+          ...prevCards,
+          {
+            id: cardId,
+            title: title || "Custom Summary",
+            content: result,
+            type: templateType,
+          },
+        ]);
       }
     } catch (error) {
       console.error("Error generating summary:", error);
@@ -1814,7 +1918,7 @@ export default function VideoDetailsPage() {
     }
   }, [isPDF, pdfUrl]);
 
-  // --- Add Handler for Title Changes from PDFViewer --- 
+  // --- Add Handler for Title Changes from PDFViewer ---
   const handlePdfTitleChange = (newTitle: string) => {
     setVideoTitle(newTitle);
     // Persist the change if needed (e.g., update context, database)
@@ -1827,44 +1931,58 @@ export default function VideoDetailsPage() {
       <Box sx={{ p: 2, fontFamily: "Inter, sans-serif" }}>
         <Grid container spacing={0}>
           {/* Left Section */}
-          <Grid 
-            item 
-            xs={12} 
+          <Grid
+            item
+            xs={12}
             md={5}
             sx={{
-              height: 'calc(100vh - 96px)', 
-              display: 'flex',
-              flexDirection: 'column',
-              bgcolor: theme.palette.mode === 'dark' ? theme.palette.background.default : theme.palette.grey[200],
+              height: "calc(100vh - 96px)",
+              display: "flex",
+              flexDirection: "column",
+              bgcolor:
+                theme.palette.mode === "dark"
+                  ? theme.palette.background.default
+                  : theme.palette.grey[200],
             }}
           >
             {/* PDF or Video Player */}
             {isPDF ? (
-              <Box sx={{
-                flexGrow: 1, 
-                overflowY: "auto", 
-                width: "100%", 
-                display: "flex", 
-                flexDirection: "column",
-                "&::-webkit-scrollbar": {
-                  width: "8px",
-                },
-                "&::-webkit-scrollbar-track": {
-                  background: theme.palette.mode === 'dark' ? theme.palette.background.paper : '#2E2E2E',
-                  borderRadius: "4px",
-                },
-                "&::-webkit-scrollbar-thumb": {
-                  background: theme.palette.mode === 'dark' ? theme.palette.grey[700] : '#555555',
-                  borderRadius: "4px",
-                  "&:hover": {
-                    background: theme.palette.mode === 'dark' ? theme.palette.grey[600] : '#777777',
+              <Box
+                sx={{
+                  flexGrow: 1,
+                  overflowY: "auto",
+                  width: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  "&::-webkit-scrollbar": {
+                    width: "8px",
                   },
-                },
-              }}>
+                  "&::-webkit-scrollbar-track": {
+                    background:
+                      theme.palette.mode === "dark"
+                        ? theme.palette.background.paper
+                        : "#2E2E2E",
+                    borderRadius: "4px",
+                  },
+                  "&::-webkit-scrollbar-thumb": {
+                    background:
+                      theme.palette.mode === "dark"
+                        ? theme.palette.grey[700]
+                        : "#555555",
+                    borderRadius: "4px",
+                    "&:hover": {
+                      background:
+                        theme.palette.mode === "dark"
+                          ? theme.palette.grey[600]
+                          : "#777777",
+                    },
+                  },
+                }}
+              >
                 <PDFViewer
                   url={pdfUrl}
                   title={videoTitle}
-                  onBack={() => router.back()} 
+                  onBack={() => router.back()}
                   onTitleChange={handlePdfTitleChange}
                 />
               </Box>
@@ -2003,7 +2121,7 @@ export default function VideoDetailsPage() {
                     </Box>
                   ) : (
                     <YouTube
-                      videoId={params.id?.toString() ?? ''}
+                      videoId={params.id?.toString() ?? ""}
                       opts={opts}
                       onReady={handleReady}
                       onStateChange={handleStateChange}
@@ -2373,35 +2491,44 @@ export default function VideoDetailsPage() {
           </Grid>
 
           {/* Right Section */}
-          <Grid 
-            item 
-            xs={12} 
+          <Grid
+            item
+            xs={12}
             md={7}
             sx={{
-              height: 'calc(100vh - 96px)', 
-              display: 'flex',
-              flexDirection: 'column',
+              height: "calc(100vh - 96px)",
+              display: "flex",
+              flexDirection: "column",
             }}
           >
             <Box
               sx={{
                 p: 2,
-                flexGrow: 1, 
-                overflowY: 'auto', 
-                display: 'flex', 
-                flexDirection: 'column',
+                flexGrow: 1,
+                overflowY: "auto",
+                display: "flex",
+                flexDirection: "column",
                 "&::-webkit-scrollbar": {
                   width: "8px",
                 },
                 "&::-webkit-scrollbar-track": {
-                  background: theme.palette.mode === 'dark' ? theme.palette.background.paper : '#2E2E2E', 
+                  background:
+                    theme.palette.mode === "dark"
+                      ? theme.palette.background.paper
+                      : "#2E2E2E",
                   borderRadius: "4px",
                 },
                 "&::-webkit-scrollbar-thumb": {
-                  background: theme.palette.mode === 'dark' ? theme.palette.grey[700] : '#555555', 
+                  background:
+                    theme.palette.mode === "dark"
+                      ? theme.palette.grey[700]
+                      : "#555555",
                   borderRadius: "4px",
                   "&:hover": {
-                    background: theme.palette.mode === 'dark' ? theme.palette.grey[600] : '#777777',
+                    background:
+                      theme.palette.mode === "dark"
+                        ? theme.palette.grey[600]
+                        : "#777777",
                   },
                 },
               }}
@@ -2430,7 +2557,8 @@ export default function VideoDetailsPage() {
                         isSummarizing || // Always disable if any summary is running
                         (isPDF
                           ? !pdfText || pdfSummaryLoading // For PDF: disable if no text OR PDF summary is loading
-                          : transcriptLoading || translatedSegments.length === 0) // For Video: disable if transcript loading OR no segments
+                          : transcriptLoading ||
+                            translatedSegments.length === 0) // For Video: disable if transcript loading OR no segments
                       }
                       sx={{
                         height: "32px",
@@ -2828,7 +2956,8 @@ export default function VideoDetailsPage() {
                         isSummarizing || // Always disable if any summary is running
                         (isPDF
                           ? !pdfText || pdfSummaryLoading // For PDF: disable if no text OR PDF summary is loading
-                          : transcriptLoading || translatedSegments.length === 0) // For Video: disable if transcript loading OR no segments
+                          : transcriptLoading ||
+                            translatedSegments.length === 0) // For Video: disable if transcript loading OR no segments
                       }
                       sx={{
                         bgcolor: theme.palette.background.paper,
@@ -2889,9 +3018,7 @@ export default function VideoDetailsPage() {
                     },
                     "&::-webkit-scrollbar-thumb": {
                       background:
-                        theme.palette.mode === "light"
-                          ? "#D1D5DB"
-                          : "#4a4a5a",
+                        theme.palette.mode === "light" ? "#D1D5DB" : "#4a4a5a",
                       borderRadius: "3px",
                       "&:hover": {
                         background:
@@ -3680,24 +3807,24 @@ export default function VideoDetailsPage() {
                         >
                           {/* Conditionally render timestamp ONLY for videos */}
                           {!isPDF && (
-                          <Typography
-                            variant="body2"
-                            component="div"
-                            color="primary"
-                            sx={{
-                              fontWeight: "bold",
-                              minWidth: "50px",
-                              mr: 2,
-                              cursor: "pointer",
-                            }}
-                            onClick={() => {
-                              if (playerRef.current) {
-                                playerRef.current.seekTo(note.timestamp);
-                              }
-                            }}
-                          >
-                            {formatTime(note.timestamp)}
-                          </Typography>
+                            <Typography
+                              variant="body2"
+                              component="div"
+                              color="primary"
+                              sx={{
+                                fontWeight: "bold",
+                                minWidth: "50px",
+                                mr: 2,
+                                cursor: "pointer",
+                              }}
+                              onClick={() => {
+                                if (playerRef.current) {
+                                  playerRef.current.seekTo(note.timestamp);
+                                }
+                              }}
+                            >
+                              {formatTime(note.timestamp)}
+                            </Typography>
                           )}
                           <Typography
                             variant="body1"
