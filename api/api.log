@@ -1,0 +1,296 @@
+ * Serving Flask app 'api'
+ * Debug mode: on
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://192.168.1.182:5001
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 652-639-473
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = 1YZo4CSQtZ6ZdXgGiz ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = dLGDGlbXS5EcgX1w_6 ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = 5bPNb7GGnu4ETe5I4C ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+127.0.0.1 - - [19/May/2025 13:46:13] "POST /video HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2025 13:46:13] "OPTIONS /video HTTP/1.1" 200 -
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = PB3GC2XNx3lOB6Dz43 ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = jzqfCwZS77u5e5KArA ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = g6bpqIluS9zUcqh7-xo ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = 1eD1tR8lek3hdSvD1m ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = 32vfIdEbOGz0Lf_eDxW ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = mBXGUofAMt81fRv0nBb ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+127.0.0.1 - - [19/May/2025 13:46:17] "POST /video HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2025 13:46:17] "POST /video HTTP/1.1" 200 -
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = WIvSAj0zSp2iUnhS2Da ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = oTbAw9thkFOFA5Hpydg ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = 7_XvC4MNK067p1pUCBX ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = u4IhKjgH6fN-oIjo7r ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = uEf-shI8Au0iMlOa7Q ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = kzIEhG53jb82HahVl1 ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+127.0.0.1 - - [19/May/2025 13:46:21] "POST /video HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2025 13:46:21] "OPTIONS /video HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2025 13:46:21] "POST /video HTTP/1.1" 200 -
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = mahf7jPZrTMKGkSrAT ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = xzYan0apQ9IJXYKsAZ ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = wifbV1ctxbbH1vy8yDs ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = V5uWZgyD5wb9i3Znuy ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = 5cXzk8PWoMny2MgVx89 ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = 4wbD4VfbzfFWqC02sJd ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+127.0.0.1 - - [19/May/2025 13:46:25] "POST /video HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2025 13:46:26] "POST /video HTTP/1.1" 200 -
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = xZW4HjgQpisHWx0F1V ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = ZykrZ6_lJG1JFOIDJD ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = jDdQyeWTk_CI7_4Tcz ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = 4zfJWCxsmJzAZ6ELM6W ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = PVXWaXE_BHYTyDZ5aEi ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = 74blckatdTKvsafDx2M ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+127.0.0.1 - - [19/May/2025 13:46:30] "POST /video HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2025 13:46:30] "POST /video HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2025 13:46:30] "OPTIONS /video HTTP/1.1" 200 -
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = oFhYsaeAiwPS0mwKt- ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = pCLWI7x0THO29OdGHg ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = 0Wh9Vh986oL49KT76U ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+127.0.0.1 - - [19/May/2025 13:46:34] "POST /video HTTP/1.1" 200 -
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = Z6EN6f5K753ku3Jcm8 ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = 3HC30b364pRXMFOYgs ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = mi-u938vAr5XxyWq3H ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+127.0.0.1 - - [19/May/2025 14:10:27] "POST /video HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2025 14:10:27] "OPTIONS /video HTTP/1.1" 200 -
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = m3vBMoNELj3kAoBZCJZ ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = tvXvNSoIgubFb2tPyql ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = I0fImdPKXlNxx4suz5s ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = j3y-Qr23HTybtZjSOu ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = Bi-OzPeegLpvpdta__ ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = 4EDdvqsXZUYAptHTs2 ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+127.0.0.1 - - [19/May/2025 14:10:31] "POST /video HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2025 14:10:31] "POST /video HTTP/1.1" 200 -
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = 4tBx-czmTAPRZfz968 ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = S9GEFxWVCVPVpoVLjy ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = k49V7gHqvOHrz0_SMg ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = nFmcu55sZuVl-Nizoa ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = XC0bjGYxQLcmuiszbF ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = z-atXow0lCbIX-dcJD ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+127.0.0.1 - - [19/May/2025 14:10:34] "POST /video HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2025 14:10:34] "OPTIONS /video HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2025 14:10:35] "POST /video HTTP/1.1" 200 -
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = 9g6efwtl1UOdKTYz7m ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = Z4z1EDbVhfcGAM9ZdK ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = je84xQhcWhqOFQfPPb ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = ZgqjyAYc-StQ1BgJ-u ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = TDfTEvWwpj912GHnWj ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = wmTas3xP4aLgcgqH1L ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+127.0.0.1 - - [19/May/2025 14:10:38] "POST /video HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2025 14:10:38] "POST /video HTTP/1.1" 200 -
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = eI7B0u8-9owQhmgBTr ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = D7gWSn0Q3XJ_JMJ-Hi ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = PIXqH7CE_ahbUmagGC ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = Mo1HFY4bMAlSTvGsv4 ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = uppiROGrTcT92auKLh ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = tyz3ppjXbKxG5itUNV ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+127.0.0.1 - - [19/May/2025 14:10:42] "POST /video HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2025 14:10:42] "OPTIONS /video HTTP/1.1" 200 -
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = AwfKjWluQf_zUoeFmXV ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = HIvfIbCjWtRdFAzOZM1 ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = gNfokth5o2Kckav5E39 ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+127.0.0.1 - - [19/May/2025 14:10:46] "POST /video HTTP/1.1" 200 -
+127.0.0.1 - - [19/May/2025 14:10:46] "POST /video HTTP/1.1" 200 -

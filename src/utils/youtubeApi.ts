@@ -22,22 +22,31 @@ export async function getYouTubeVideoDetails(
 ): Promise<VideoDetails | null> {
   // Check cache first
   if (apiCache[videoId]) {
+    console.log("[YouTube API] Using cached data for video:", videoId);
     return apiCache[videoId];
   }
 
   try {
+    console.log("[YouTube API] Fetching details for video:", videoId);
     const response = await fetch(`/api/youtube?videoId=${videoId}`);
 
     if (!response.ok) {
+      console.error("[YouTube API] Error response:", {
+        status: response.status,
+        statusText: response.statusText,
+      });
+
       // Check for specific error codes
       if (response.status === 429) {
-        console.warn("YouTube API quota exceeded. Using fallback title.");
+        console.warn("[YouTube API] Quota exceeded. Using fallback title.");
         const fallback = createFallbackDetails(videoId);
         apiCache[videoId] = fallback;
         return fallback;
       }
 
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({}));
+      console.error("[YouTube API] Error data:", errorData);
+
       if (errorData.fallbackTitle) {
         const fallback = {
           title: errorData.fallbackTitle,
@@ -53,11 +62,16 @@ export async function getYouTubeVideoDetails(
     }
 
     const data = await response.json();
+    console.log("[YouTube API] Successfully fetched data:", {
+      title: data.title,
+      hasTranscript: !!data.transcript,
+    });
+
     // Cache successful response
     apiCache[videoId] = data;
     return data;
   } catch (error) {
-    console.error("Error fetching YouTube video details:", error);
+    console.error("[YouTube API] Error fetching video details:", error);
     // Cache the error response to prevent repeated failing calls
     const fallback = createFallbackDetails(videoId);
     apiCache[videoId] = fallback;

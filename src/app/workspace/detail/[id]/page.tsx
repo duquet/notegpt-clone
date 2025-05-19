@@ -491,6 +491,13 @@ interface NetworkInformation {
   rtt?: number;
 }
 
+// Add new interfaces for chunked loading
+interface TranscriptChunk {
+  startTime: number;
+  endTime: number;
+  segments: TranscriptSegment[];
+}
+
 export default function VideoDetailsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -661,6 +668,31 @@ export default function VideoDetailsPage() {
   const [pdfSummaryLoading, setPdfSummaryLoading] = useState(false);
   const [pdfSummaryError, setPdfSummaryError] = useState<string | null>(null);
 
+  // Add new state variables after the existing state declarations
+  const [transcriptChunks, setTranscriptChunks] = useState<TranscriptChunk[]>(
+    []
+  );
+  const [currentChunkIndex, setCurrentChunkIndex] = useState(0);
+  const [isLoadingChunk, setIsLoadingChunk] = useState(false);
+  const [chunkLoadingError, setChunkLoadingError] = useState<string | null>(
+    null
+  );
+  const [lastChunkEndTime, setLastChunkEndTime] = useState(0);
+  const [totalChunks, setTotalChunks] = useState(0);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Add constant for chunk duration (5 minutes)
+  const CHUNK_DURATION = 300;
+
+  // Add refs for tracking loading state
+  const isLoadingRef = useRef(false);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadingTriggerRef = useRef<HTMLDivElement>(null);
+
+  const [currentTime, setCurrentTime] = useState(0);
+  const timeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   // Fetch video details on component mount OR set PDF title
   useEffect(() => {
     if (isPDF) {
@@ -675,88 +707,136 @@ export default function VideoDetailsPage() {
 
     // It's a video, proceed with fetching video details
     const fetchVideoDetails = async () => {
-      // First try to get from recent videos history
-      const savedVideo = recentVideos.find((video) => video.id === params.id);
+      console.log("[VideoDetails] Starting to fetch video details");
+      try {
+        // First try to get from recent videos history
+        const savedVideo = recentVideos.find((video) => video.id === params.id);
 
-      if (savedVideo) {
-        setVideoTitle(savedVideo.title);
-        setEditedTitle(savedVideo.title);
-        setLoading(false);
-      } else {
-        // If not in history, fetch from API
-        try {
-          const videoDetails = await getYouTubeVideoDetails(
-            params.id as string
+        if (savedVideo) {
+          console.log(
+            "[VideoDetails] Found video in history:",
+            savedVideo.title
           );
-          if (videoDetails) {
-            setVideoTitle(videoDetails.title);
-            setEditedTitle(videoDetails.title);
-          } else {
-            // Use fallback if API call failed
+          setVideoTitle(savedVideo.title);
+          setEditedTitle(savedVideo.title);
+          setLoading(false);
+        } else {
+          console.log("[VideoDetails] Video not in history, fetching from API");
+          // If not in history, fetch from API
+          try {
+            const videoDetails = await getYouTubeVideoDetails(
+              params.id as string
+            );
+            if (videoDetails) {
+              console.log(
+                "[VideoDetails] Successfully fetched video details:",
+                {
+                  title: videoDetails.title,
+                  hasTranscript: !!videoDetails.transcript,
+                }
+              );
+              setVideoTitle(videoDetails.title);
+              setEditedTitle(videoDetails.title);
+            } else {
+              console.warn("[VideoDetails] No video details returned from API");
+              const fallbackTitle = generateFallbackTitle(params.id as string);
+              setVideoTitle(fallbackTitle);
+              setEditedTitle(fallbackTitle);
+            }
+          } catch (error) {
+            console.error(
+              "[VideoDetails] Error fetching video details:",
+              error
+            );
+            setApiError(true);
             const fallbackTitle = generateFallbackTitle(params.id as string);
             setVideoTitle(fallbackTitle);
             setEditedTitle(fallbackTitle);
+          } finally {
+            setLoading(false);
           }
-        } catch (error) {
-          console.error("Error fetching video details:", error);
-          setApiError(true);
-          const fallbackTitle = generateFallbackTitle(params.id as string);
-          setVideoTitle(fallbackTitle);
-          setEditedTitle(fallbackTitle);
-        } finally {
-          setLoading(false);
         }
-      }
 
-      // Fetch transcript
-      fetchTranscript();
+        // Fetch transcript
+        await fetchTranscript();
+      } catch (error) {
+        console.error("[VideoDetails] Error in fetchVideoDetails:", error);
+        setLoading(false);
+      }
     };
 
     const fetchTranscript = async () => {
+      console.log("[VideoDetails] Starting to fetch transcript");
       setTranscriptLoading(true);
+      setError(null);
+
       try {
-        // Try to get transcript from API
-        const videoUrl = `https://www.youtube.com/watch?v=${params.id}`;
-        const response = await fetch("http://127.0.0.1:5000/video", {
+        console.log("[VideoDetails] Fetching transcript from API");
+        const response = await fetch("http://127.0.0.1:5001/video", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ url: videoUrl }),
+          body: JSON.stringify({
+            url: `https://www.youtube.com/watch?v=${params.id}`,
+            segmentDuration: 30,
+            chunkSize: CHUNK_DURATION,
+          }),
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          if (data.transcript && typeof data.transcript === "string") {
-            // Split transcript into 30-second segments
-            const segments = createTranscriptSegments(data.transcript);
-            setTranscriptSegments(segments);
-          } else {
-            // If no transcript, create a placeholder
-            setTranscriptSegments([
-              {
-                startTime: 0,
-                endTime: 30,
-                text: "No transcript available for this video.",
-              },
-            ]);
-          }
-        } else {
-          setTranscriptSegments([
-            {
-              startTime: 0,
-              endTime: 30,
-              text: "Failed to load transcript. API returned an error.",
-            },
-          ]);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error("[VideoDetails] Transcript API error:", {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData,
+          });
+          throw new Error(errorData.error || "Failed to fetch transcript");
         }
+
+        const data = await response.json();
+        console.log("[VideoDetails] Received transcript data:", {
+          hasTranscript: !!data.transcript_chunk,
+          transcriptLength:
+            data.transcript_chunk?.grouped_segments?.length || 0,
+        });
+
+        if (!data.transcript_chunk?.grouped_segments) {
+          throw new Error("No transcript data received");
+        }
+
+        // Calculate total chunks
+        const totalChunks = Math.ceil(data.duration / CHUNK_DURATION);
+        setTotalChunks(totalChunks);
+
+        // Set initial chunk
+        const initialChunk: TranscriptChunk = {
+          startTime: data.transcript_chunk.start_time,
+          endTime: data.transcript_chunk.end_time,
+          segments: data.transcript_chunk.grouped_segments.map(
+            (segment: any) => ({
+              startTime: segment.startTime,
+              endTime: segment.endTime,
+              text: segment.text,
+            })
+          ),
+        };
+
+        setTranscriptChunks([initialChunk]);
+        setTranscriptSegments(initialChunk.segments);
+        setCurrentChunkIndex(0);
+        setLastChunkEndTime(data.transcript_chunk.end_time);
+        setIsInitialLoad(false);
       } catch (error) {
-        console.error("Error fetching transcript:", error);
+        console.error("[VideoDetails] Error fetching transcript:", error);
+        setError(
+          error instanceof Error ? error.message : "Failed to fetch transcript"
+        );
         setTranscriptSegments([
           {
             startTime: 0,
             endTime: 30,
-            text: "Error fetching transcript. Please try again later.",
+            text: "Failed to load transcript. Please try again later.",
           },
         ]);
       } finally {
@@ -1027,21 +1107,40 @@ export default function VideoDetailsPage() {
 
   // Handle YouTube player state change
   const handleStateChange = (event: YouTubeEvent) => {
-    // YouTube states: -1 (unstarted), 0 (ended), 1 (playing), 2 (paused), 3 (buffering), 5 (cued)
-    if (event.data === 1) {
-      // Playing
-      console.log("Video playing");
+    if (event.data === window.YT.PlayerState.PLAYING) {
+      startTimeTracking();
+    } else if (event.data === window.YT.PlayerState.PAUSED) {
+      stopTimeTracking();
+    }
+  };
+
+  // Update the time tracking function
+  const startTimeTracking = () => {
+    if (playerRef.current) {
+      const updateTime = () => {
+        const time = playerRef.current?.getCurrentTime() || 0;
+        setCurrentTime(time);
+      };
+      timeIntervalRef.current = setInterval(updateTime, 1000);
+    }
+  };
+
+  const stopTimeTracking = () => {
+    if (timeIntervalRef.current) {
+      clearInterval(timeIntervalRef.current);
     }
   };
 
   // YouTube player options
   const opts: YouTubeProps["opts"] = {
-    height: "352",
+    height: "100%",
     width: "100%",
     playerVars: {
+      autoplay: 0,
       modestbranding: 1,
       rel: 0,
-      showinfo: 0,
+      origin: window.location.origin,
+      host: "https://www.youtube.com",
     },
   };
 
@@ -1926,6 +2025,198 @@ export default function VideoDetailsPage() {
     console.log("PDF title updated in parent:", newTitle);
   };
 
+  // Add new function to load next chunk
+  const loadNextChunk = async () => {
+    if (isLoadingRef.current || currentChunkIndex >= totalChunks - 1) return;
+
+    try {
+      isLoadingRef.current = true;
+      setIsLoadingChunk(true);
+      setChunkLoadingError(null);
+
+      const response = await fetch("http://127.0.0.1:5001/video/chunk", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          url: `https://www.youtube.com/watch?v=${params.id}`,
+          startTime: lastChunkEndTime,
+          duration: CHUNK_DURATION,
+          segmentDuration: 30,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to load chunk: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      if (!data.grouped_segments || data.grouped_segments.length === 0) {
+        throw new Error("No segments in chunk");
+      }
+
+      const newChunk: TranscriptChunk = {
+        startTime: data.start_time,
+        endTime: data.end_time,
+        segments: data.grouped_segments.map((segment: any) => ({
+          startTime: segment.startTime,
+          endTime: segment.endTime,
+          text: segment.text,
+        })),
+      };
+
+      setTranscriptChunks((prev) => [...prev, newChunk]);
+      setCurrentChunkIndex((prev) => prev + 1);
+      setLastChunkEndTime(data.end_time);
+    } catch (error) {
+      console.error("[Chunk Loading] Error:", error);
+      setChunkLoadingError(
+        error instanceof Error ? error.message : "Failed to load chunk"
+      );
+    } finally {
+      isLoadingRef.current = false;
+      setIsLoadingChunk(false);
+    }
+  };
+
+  // Add intersection observer for lazy loading
+  useEffect(() => {
+    if (!loadingTriggerRef.current) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isLoadingRef.current) {
+          loadNextChunk();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observerRef.current.observe(loadingTriggerRef.current);
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [currentChunkIndex, totalChunks, loadNextChunk]);
+
+  // Modify fetchTranscript to handle chunked data
+  const fetchTranscript = async () => {
+    try {
+      console.log("[VideoDetails] Starting to fetch transcript");
+      const response = await fetch("http://127.0.0.1:5001/video", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          url: `https://www.youtube.com/watch?v=${params.id}`,
+          segmentDuration: 30,
+          chunkSize: CHUNK_DURATION,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch transcript: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log("[VideoDetails] Received transcript data:", {
+        hasTranscript: !!data.transcript_chunk,
+        transcriptLength: data.transcript_chunk?.grouped_segments?.length || 0,
+      });
+
+      if (!data.transcript_chunk?.grouped_segments) {
+        throw new Error("No transcript data received");
+      }
+
+      // Calculate total chunks
+      const totalChunks = Math.ceil(data.duration / CHUNK_DURATION);
+      setTotalChunks(totalChunks);
+
+      // Set initial chunk
+      const initialChunk: TranscriptChunk = {
+        startTime: data.transcript_chunk.start_time,
+        endTime: data.transcript_chunk.end_time,
+        segments: data.transcript_chunk.grouped_segments.map(
+          (segment: any) => ({
+            startTime: segment.startTime,
+            endTime: segment.endTime,
+            text: segment.text,
+          })
+        ),
+      };
+
+      setTranscriptChunks([initialChunk]);
+      setTranscriptSegments(initialChunk.segments);
+      setCurrentChunkIndex(0);
+      setLastChunkEndTime(data.transcript_chunk.end_time);
+      setIsInitialLoad(false);
+    } catch (error) {
+      console.error("[VideoDetails] Transcript API error:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to fetch transcript"
+      );
+    }
+  };
+
+  // Add loading indicator component
+  const ChunkLoadingIndicator = () => (
+    <Box
+      ref={loadingTriggerRef}
+      sx={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        py: 2,
+        minHeight: "100px",
+      }}
+    >
+      {isLoadingChunk ? (
+        <CircularProgress size={24} />
+      ) : chunkLoadingError ? (
+        <Typography color="error">{chunkLoadingError}</Typography>
+      ) : currentChunkIndex < totalChunks - 1 ? (
+        <Typography color="text.secondary">Scroll to load more</Typography>
+      ) : null}
+    </Box>
+  );
+
+  // Modify the transcript rendering section
+  const renderTranscript = () => {
+    if (!transcriptSegments.length) return null;
+
+    return (
+      <Box sx={{ mt: 2 }}>
+        {transcriptSegments.map((segment, index) => (
+          <Box
+            key={index}
+            sx={{
+              p: 1,
+              cursor: "pointer",
+              backgroundColor:
+                currentTime >= segment.startTime &&
+                currentTime <= segment.endTime
+                  ? "action.selected"
+                  : "transparent",
+              "&:hover": {
+                backgroundColor: "action.hover",
+              },
+            }}
+            onClick={() => handleSegmentClick(segment.startTime)}
+          >
+            <Typography variant="body2">
+              {formatTime(segment.startTime)} - {segment.text}
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+    );
+  };
+
+  // Replace the existing transcript section with the new render function
   return (
     <>
       <Box sx={{ p: 2, fontFamily: "Inter, sans-serif" }}>
@@ -2396,93 +2687,7 @@ export default function VideoDetailsPage() {
                         <CircularProgress size={24} />
                       </Box>
                     ) : (
-                      translatedSegments.map((segment, index) => (
-                        <Box
-                          key={index}
-                          data-segment-index={index}
-                          onClick={() => handleSegmentClick(segment.startTime)}
-                          sx={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 0.5,
-                            py: 1.5,
-                            width: "100%",
-                            cursor: "pointer",
-                            bgcolor:
-                              currentSegmentIndex === index
-                                ? theme.palette.mode === "light"
-                                  ? "rgba(25, 118, 210, 0.08)"
-                                  : "rgba(144, 202, 249, 0.08)"
-                                : "transparent",
-                            borderRadius: 1,
-                            transition: "background-color 0.3s ease",
-                            "&:hover": {
-                              bgcolor:
-                                currentSegmentIndex === index
-                                  ? theme.palette.mode === "light"
-                                    ? "rgba(25, 118, 210, 0.12)"
-                                    : "rgba(144, 202, 249, 0.12)"
-                                  : theme.palette.mode === "light"
-                                  ? "rgba(0, 0, 0, 0.04)"
-                                  : "rgba(255, 255, 255, 0.04)",
-                            },
-                            px: 1,
-                          }}
-                        >
-                          <Box
-                            sx={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                              mb: 0.5,
-                            }}
-                          >
-                            <Typography
-                              sx={{
-                                color:
-                                  currentSegmentIndex === index
-                                    ? theme.palette.primary.main
-                                    : theme.palette.text.primary,
-                                fontWeight:
-                                  currentSegmentIndex === index
-                                    ? "bold"
-                                    : "normal",
-                                fontSize: "0.875rem",
-                              }}
-                            >
-                              {formatTime(segment.startTime)} -{" "}
-                              {formatTime(segment.endTime)}
-                            </Typography>
-                            <KeyboardArrowDownIcon
-                              sx={{
-                                color: theme.palette.text.secondary,
-                                fontSize: "1rem",
-                                "&:hover": {
-                                  color: theme.palette.text.primary,
-                                },
-                                cursor: "pointer",
-                              }}
-                            />
-                          </Box>
-                          <Typography
-                            className="transcript-text"
-                            sx={{
-                              color:
-                                currentSegmentIndex === index
-                                  ? theme.palette.primary.main
-                                  : theme.palette.text.primary,
-                              fontSize: "1rem",
-                              lineHeight: 1.5,
-                              width: "100%",
-                              pr: 2,
-                              fontWeight:
-                                currentSegmentIndex === index ? 500 : "normal",
-                            }}
-                          >
-                            {segment.text}
-                          </Typography>
-                        </Box>
-                      ))
+                      <>{renderTranscript()}</>
                     )}
                   </Box>
                 </TabPanel>
