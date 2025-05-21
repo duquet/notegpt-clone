@@ -7,9 +7,21 @@ import re
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 import time
 from functools import wraps
+from wtpsplit import SaT
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv('.env.local')
+
+# Set Hugging Face token
+os.environ['HUGGINGFACE_TOKEN'] = os.getenv('HF_API_TOKEN')
 
 app = Flask(__name__)
 CORS(app)
+
+# Initialize the wtpsplit model with the token
+sat = SaT("sat-12l-sm")
 
 
 def extract_video_id(url):
@@ -119,6 +131,48 @@ def get_video_transcript_chunked(url, start_time, duration):
     return chunk
 
 
+def clean_text(text, should_capitalize_first=True):
+    # Remove extra spaces before punctuation
+    text = text.replace(" .", ".")
+    text = text.replace(" ,", ",")
+    text = text.replace(" !", "!")
+    text = text.replace(" ?", "?")
+
+    # Fix common spacing issues
+    text = text.replace("  ", " ")  # Double spaces
+    text = text.strip()  # Leading/trailing spaces
+
+    # Split into sentences
+    sentences = text.split(". ")
+
+    # Process each sentence
+    processed_sentences = []
+    for i, sentence in enumerate(sentences):
+        if not sentence:
+            continue
+
+        # Capitalize first word only if it's the first sentence and should_capitalize_first is True
+        words = sentence.split()
+        if words:
+            if i == 0 and should_capitalize_first:
+                words[0] = words[0][0].upper() + words[0][1:].lower()
+            elif i > 0:  # Always capitalize first word of subsequent sentences
+                words[0] = words[0][0].upper() + words[0][1:].lower()
+
+            # Preserve ALL CAPS words (likely abbreviations)
+            for j in range(1, len(words)):
+                if words[j].isupper() and len(words[j]) > 1:
+                    continue  # Keep ALL CAPS words as is
+                elif words[j][0].isupper() and j > 0:
+                    continue  # Keep words that start with capital in middle of sentence
+                else:
+                    words[j] = words[j].lower()
+
+        processed_sentences.append(" ".join(words))
+
+    return ". ".join(processed_sentences)
+
+
 def group_transcript_by_interval(entries, interval=30):
     if not entries or len(entries) == 0:
         return []
@@ -129,6 +183,10 @@ def group_transcript_by_interval(entries, interval=30):
     grouped = []
     grouped.reserve(estimated_groups) if hasattr(grouped, 'reserve') else None
 
+    # Flag to track if previous segment ended with sentence-ending punctuation
+    # Start with True since first segment should be capitalized
+    prev_ended_with_punct = True
+
     current_group = {
         'startTime': entries[0]['start'],
         'endTime': entries[0]['start'] + interval,
@@ -137,6 +195,25 @@ def group_transcript_by_interval(entries, interval=30):
 
     for entry in entries[1:]:
         if entry['start'] >= current_group['endTime']:
+            # Process the current group's text with wtpsplit before saving
+            try:
+                # Split the text into proper sentences
+                sentences = sat.split(current_group['text'])
+                # Join sentences with proper punctuation and clean text
+                current_group['text'] = clean_text(
+                    ". ".join(sentences), prev_ended_with_punct)
+                # Update flag based on last character of current segment
+                prev_ended_with_punct = current_group['text'].rstrip(
+                )[-1] in '.!?'
+            except Exception as e:
+                print(f"Error processing text with wtpsplit: {str(e)}")
+                # If wtpsplit fails, clean the original text
+                current_group['text'] = clean_text(
+                    current_group['text'], prev_ended_with_punct)
+                # Update flag based on last character of current segment
+                prev_ended_with_punct = current_group['text'].rstrip(
+                )[-1] in '.!?'
+
             # Save current group and start a new one
             grouped.append(current_group)
             current_group = {
@@ -147,6 +224,17 @@ def group_transcript_by_interval(entries, interval=30):
         else:
             # Add to current group
             current_group['text'] += ' ' + entry['text']
+
+    # Process the last group's text
+    try:
+        sentences = sat.split(current_group['text'])
+        current_group['text'] = clean_text(
+            ". ".join(sentences), prev_ended_with_punct)
+    except Exception as e:
+        print(f"Error processing text with wtpsplit: {str(e)}")
+        # If wtpsplit fails, clean the original text
+        current_group['text'] = clean_text(
+            current_group['text'], prev_ended_with_punct)
 
     # Add the last group
     grouped.append(current_group)
