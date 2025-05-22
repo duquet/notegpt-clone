@@ -75,6 +75,7 @@ import "react-pdf/dist/esm/Page/TextLayer.css";
 import PDFViewer from "@/app/workspace/detail/[id]/components/PDFViewer";
 import { extractPdfText } from "@/utils/pdfUtils";
 import summaryPrompts from "@/utils/summaryPrompts.json";
+import { debounce } from "lodash";
 
 // Add YouTube API types
 declare global {
@@ -498,6 +499,11 @@ interface TranscriptChunk {
   segments: TranscriptSegment[];
 }
 
+// Add at the top of the component
+const debouncedLog = debounce((message: string, data?: any) => {
+  console.log(message, data);
+}, 1000);
+
 export default function VideoDetailsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -513,7 +519,7 @@ export default function VideoDetailsPage() {
   // Log initial render time
   useEffect(() => {
     const initialRenderTime = Date.now() - pageLoadStartTime.current;
-    console.log(
+    debouncedLog(
       `[Performance] Page initial render time: ${initialRenderTime}ms`
     );
 
@@ -521,19 +527,22 @@ export default function VideoDetailsPage() {
     const perfObserver = new PerformanceObserver((list) => {
       list.getEntries().forEach((entry) => {
         if (entry.entryType === "largest-contentful-paint") {
-          console.log(
+          debouncedLog(
             `[Performance] Largest Contentful Paint: ${entry.startTime}ms`
           );
         }
         if (entry.entryType === "layout-shift") {
           const layoutShift = entry as LayoutShiftEntry;
-          console.log(
-            `[Performance] Cumulative Layout Shift: ${layoutShift.value}`
-          );
+          // Only log significant layout shifts (greater than 0.1)
+          if (layoutShift.value > 0.1) {
+            debouncedLog(
+              `[Performance] Significant Layout Shift: ${layoutShift.value}`
+            );
+          }
         }
         if (entry.entryType === "first-input") {
           const firstInput = entry as FirstInputEntry;
-          console.log(
+          debouncedLog(
             `[Performance] First Input Delay: ${
               firstInput.processingStart - firstInput.startTime
             }ms`
@@ -550,7 +559,7 @@ export default function VideoDetailsPage() {
     // Log network conditions if available
     if ("connection" in navigator) {
       const connection = (navigator as any).connection as NetworkInformation;
-      console.log("[Performance] Network conditions:", {
+      debouncedLog("[Performance] Network conditions:", {
         effectiveType: connection?.effectiveType,
         downlink: connection?.downlink,
         rtt: connection?.rtt,
@@ -559,7 +568,7 @@ export default function VideoDetailsPage() {
 
     return () => {
       perfObserver.disconnect();
-      console.log(
+      debouncedLog(
         `[Performance] Total page lifetime: ${
           Date.now() - pageLoadStartTime.current
         }ms`
@@ -570,9 +579,9 @@ export default function VideoDetailsPage() {
   // Log when PDF/Video content starts and finishes loading
   useEffect(() => {
     if (isPDF) {
-      console.log("[Performance] Starting PDF content load");
+      debouncedLog("[Performance] Starting PDF content load");
     } else {
-      console.log("[Performance] Starting video content load");
+      debouncedLog("[Performance] Starting video content load");
     }
   }, [isPDF]);
 
@@ -707,13 +716,13 @@ export default function VideoDetailsPage() {
 
     // It's a video, proceed with fetching video details
     const fetchVideoDetails = async () => {
-      console.log("[VideoDetails] Starting to fetch video details");
+      debouncedLog("[VideoDetails] Starting to fetch video details");
       try {
         // First try to get from recent videos history
         const savedVideo = recentVideos.find((video) => video.id === params.id);
 
         if (savedVideo) {
-          console.log(
+          debouncedLog(
             "[VideoDetails] Found video in history:",
             savedVideo.title
           );
@@ -721,14 +730,16 @@ export default function VideoDetailsPage() {
           setEditedTitle(savedVideo.title);
           setLoading(false);
         } else {
-          console.log("[VideoDetails] Video not in history, fetching from API");
+          debouncedLog(
+            "[VideoDetails] Video not in history, fetching from API"
+          );
           // If not in history, fetch from API
           try {
             const videoDetails = await getYouTubeVideoDetails(
               params.id as string
             );
             if (videoDetails) {
-              console.log(
+              debouncedLog(
                 "[VideoDetails] Successfully fetched video details:",
                 {
                   title: videoDetails.title,
@@ -738,16 +749,13 @@ export default function VideoDetailsPage() {
               setVideoTitle(videoDetails.title);
               setEditedTitle(videoDetails.title);
             } else {
-              console.warn("[VideoDetails] No video details returned from API");
+              debouncedLog("[VideoDetails] No video details returned from API");
               const fallbackTitle = generateFallbackTitle(params.id as string);
               setVideoTitle(fallbackTitle);
               setEditedTitle(fallbackTitle);
             }
           } catch (error) {
-            console.error(
-              "[VideoDetails] Error fetching video details:",
-              error
-            );
+            debouncedLog("[VideoDetails] Error fetching video details:", error);
             setApiError(true);
             const fallbackTitle = generateFallbackTitle(params.id as string);
             setVideoTitle(fallbackTitle);
@@ -760,18 +768,18 @@ export default function VideoDetailsPage() {
         // Fetch transcript
         await fetchTranscript();
       } catch (error) {
-        console.error("[VideoDetails] Error in fetchVideoDetails:", error);
+        debouncedLog("[VideoDetails] Error in fetchVideoDetails:", error);
         setLoading(false);
       }
     };
 
     const fetchTranscript = async () => {
-      console.log("[VideoDetails] Starting to fetch transcript");
+      debouncedLog("[VideoDetails] Starting to fetch transcript");
       setTranscriptLoading(true);
       setError(null);
 
       try {
-        console.log("[VideoDetails] Fetching transcript from API");
+        debouncedLog("[VideoDetails] Fetching transcript from API");
         const response = await fetch("http://127.0.0.1:5001/video", {
           method: "POST",
           headers: {
@@ -786,7 +794,7 @@ export default function VideoDetailsPage() {
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          console.error("[VideoDetails] Transcript API error:", {
+          debouncedLog("[VideoDetails] Transcript API error:", {
             status: response.status,
             statusText: response.statusText,
             error: errorData,
@@ -795,7 +803,7 @@ export default function VideoDetailsPage() {
         }
 
         const data = await response.json();
-        console.log("[VideoDetails] Received transcript data:", {
+        debouncedLog("[VideoDetails] Received transcript data:", {
           hasTranscript: !!data.transcript_chunk,
           transcriptLength:
             data.transcript_chunk?.grouped_segments?.length || 0,
@@ -828,7 +836,7 @@ export default function VideoDetailsPage() {
         setLastChunkEndTime(data.transcript_chunk.end_time);
         setIsInitialLoad(false);
       } catch (error) {
-        console.error("[VideoDetails] Error fetching transcript:", error);
+        debouncedLog("[VideoDetails] Error fetching transcript:", error);
         setError(
           error instanceof Error ? error.message : "Failed to fetch transcript"
         );
@@ -873,7 +881,7 @@ export default function VideoDetailsPage() {
 
     // Handle very short videos (under 60 seconds) specially
     if (actualDuration && actualDuration < 60) {
-      console.log("Handling short video with duration:", actualDuration); // Debug log
+      debouncedLog("Handling short video with duration:", actualDuration); // Debug log
 
       // For very short videos, either use one segment or split in half
       if (actualDuration < 30 || totalWords < 50) {
@@ -1048,7 +1056,7 @@ export default function VideoDetailsPage() {
 
   // Handle YouTube player ready event
   const handleReady = (event: YouTubeEvent) => {
-    console.log(
+    debouncedLog(
       `[Performance] YouTube player ready: ${
         Date.now() - pageLoadStartTime.current
       }ms`
@@ -1058,7 +1066,7 @@ export default function VideoDetailsPage() {
     // Get and store video duration when player is ready
     try {
       const duration = playerRef.current.getDuration();
-      console.log("[Performance] Video duration loaded:", duration);
+      debouncedLog("[Performance] Video duration loaded:", duration);
 
       if (duration && !isNaN(duration)) {
         setVideoDuration(duration);
@@ -1071,8 +1079,8 @@ export default function VideoDetailsPage() {
             endTime: Math.min(segment.endTime, Math.ceil(duration)),
           }));
 
-          console.log("Original segments:", transcriptSegments); // Debug log
-          console.log("Fixed segments:", fixedSegments); // Debug log
+          debouncedLog("Original segments:", transcriptSegments); // Debug log
+          debouncedLog("Fixed segments:", fixedSegments); // Debug log
 
           // Update with fixed segments first (quick fix)
           setTranscriptSegments(fixedSegments);
@@ -1095,7 +1103,7 @@ export default function VideoDetailsPage() {
               fullText,
               duration
             );
-            console.log("Updated segments with duration:", updatedSegments); // Debug log
+            debouncedLog("Updated segments with duration:", updatedSegments); // Debug log
             setTranscriptSegments(updatedSegments);
           }
         }
@@ -1235,7 +1243,7 @@ export default function VideoDetailsPage() {
       return;
     }
 
-    console.log("Running duration effect with duration:", videoDuration);
+    debouncedLog("Running duration effect with duration:", videoDuration);
 
     // Skip placeholder transcripts
     if (
@@ -1255,7 +1263,7 @@ export default function VideoDetailsPage() {
 
     // Recreate segments with accurate duration
     const updatedSegments = createTranscriptSegments(fullText, videoDuration);
-    console.log("Recreated segments with accurate duration:", updatedSegments);
+    debouncedLog("Recreated segments with accurate duration:", updatedSegments);
 
     // Check if segments need updating (have any times exceeding video duration)
     const needsUpdate = transcriptSegments.some(
@@ -1610,15 +1618,15 @@ export default function VideoDetailsPage() {
     // If it's a quiz flashcard type, try to parse the JSON
     if (templateType === "quiz-flashcards") {
       try {
-        console.log("Parsing quiz flashcards from response:", response);
+        debouncedLog("Parsing quiz flashcards from response:", response);
 
         // Extract JSON from the markdown code block if it exists
         const jsonMatch = response.match(/```json\n([\s\S]*?)\n```/);
         if (jsonMatch && jsonMatch[1]) {
-          console.log("Found JSON code block:", jsonMatch[1]);
+          debouncedLog("Found JSON code block:", jsonMatch[1]);
           try {
             const parsed = JSON.parse(jsonMatch[1]);
-            console.log("Successfully parsed JSON from code block:", parsed);
+            debouncedLog("Successfully parsed JSON from code block:", parsed);
             return parsed;
           } catch (parseErr) {
             console.error("Error parsing JSON from code block:", parseErr);
@@ -1628,10 +1636,10 @@ export default function VideoDetailsPage() {
         // If no code block or parsing failed, try finding JSON array in the text
         const jsonArrayMatch = response.match(/\[\s*\{[\s\S]*\}\s*\]/);
         if (jsonArrayMatch) {
-          console.log("Found JSON array in text:", jsonArrayMatch[0]);
+          debouncedLog("Found JSON array in text:", jsonArrayMatch[0]);
           try {
             const parsed = JSON.parse(jsonArrayMatch[0]);
-            console.log("Successfully parsed JSON array from text:", parsed);
+            debouncedLog("Successfully parsed JSON array from text:", parsed);
             return parsed;
           } catch (parseErr) {
             console.error("Error parsing JSON array from text:", parseErr);
@@ -1639,7 +1647,7 @@ export default function VideoDetailsPage() {
         }
 
         // If all parsing attempts fail, create a sample flashcard so we don't get the "No flash cards available" message
-        console.log("All parsing attempts failed, creating sample flashcards");
+        debouncedLog("All parsing attempts failed, creating sample flashcards");
         return [
           {
             question: "What was discussed in this content?",
@@ -2022,7 +2030,7 @@ export default function VideoDetailsPage() {
     setVideoTitle(newTitle);
     // Persist the change if needed (e.g., update context, database)
     // For now, just update local state
-    console.log("PDF title updated in parent:", newTitle);
+    debouncedLog("PDF title updated in parent:", newTitle);
   };
 
   // Add new function to load next chunk
@@ -2105,7 +2113,7 @@ export default function VideoDetailsPage() {
   // Modify fetchTranscript to handle chunked data
   const fetchTranscript = async () => {
     try {
-      console.log("[VideoDetails] Starting to fetch transcript");
+      debouncedLog("[VideoDetails] Starting to fetch transcript");
       const response = await fetch("http://127.0.0.1:5001/video", {
         method: "POST",
         headers: {
@@ -2123,7 +2131,7 @@ export default function VideoDetailsPage() {
       }
 
       const data = await response.json();
-      console.log("[VideoDetails] Received transcript data:", {
+      debouncedLog("[VideoDetails] Received transcript data:", {
         hasTranscript: !!data.transcript_chunk,
         transcriptLength: data.transcript_chunk?.grouped_segments?.length || 0,
       });
@@ -3154,29 +3162,31 @@ export default function VideoDetailsPage() {
 
                   {/* AI Flash Card Button */}
                   <Tooltip title="AI Flash Cards">
-                    <IconButton
-                      size="small"
-                      onClick={() => handleSummaryTemplate("quiz-flashcards")}
-                      disabled={
-                        isSummarizing || // Always disable if any summary is running
-                        (isPDF
-                          ? !pdfText || pdfSummaryLoading // For PDF: disable if no text OR PDF summary is loading
-                          : transcriptLoading ||
-                            translatedSegments.length === 0) // For Video: disable if transcript loading OR no segments
-                      }
-                      sx={{
-                        bgcolor: theme.palette.background.paper,
-                        color: theme.palette.text.secondary,
-                        width: "20px",
-                        height: "20px",
-                        "&:hover": {
-                          bgcolor: theme.palette.divider,
-                          color: theme.palette.text.primary,
-                        },
-                      }}
-                    >
-                      <SchoolIcon fontSize="small" />
-                    </IconButton>
+                    <span>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleSummaryTemplate("quiz-flashcards")}
+                        disabled={
+                          isSummarizing || // Always disable if any summary is running
+                          (isPDF
+                            ? !pdfText || pdfSummaryLoading // For PDF: disable if no text OR PDF summary is loading
+                            : transcriptLoading ||
+                              translatedSegments.length === 0) // For Video: disable if transcript loading OR no segments
+                        }
+                        sx={{
+                          bgcolor: theme.palette.background.paper,
+                          color: theme.palette.text.secondary,
+                          width: "20px",
+                          height: "20px",
+                          "&:hover": {
+                            bgcolor: theme.palette.divider,
+                            color: theme.palette.text.primary,
+                          },
+                        }}
+                      >
+                        <SchoolIcon fontSize="small" />
+                      </IconButton>
+                    </span>
                   </Tooltip>
 
                   <Tooltip title="Add Notes">

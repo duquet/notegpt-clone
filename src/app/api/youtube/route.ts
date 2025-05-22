@@ -37,7 +37,7 @@ export async function GET(request: Request) {
         publishedAt: data.uploaded_at || new Date().toISOString(),
         thumbnailUrl: "", // Python API doesn't provide thumbnail
         transcript: data.transcript || "", // Include transcript from Python API
-        hasTranscript: !!data.transcript_chunk,
+        hasTranscript: !!data.transcript_chunk?.grouped_segments?.length, // Check for actual transcript segments
         transcript_chunk: data.transcript_chunk, // Include full transcript chunk data
         duration: data.duration, // Include video duration
       });
