@@ -4,9 +4,15 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const videoId = searchParams.get("videoId");
 
+  console.log("[YouTube API] Incoming GET /api/youtube with videoId:", videoId);
+
   if (!videoId) {
+    console.error("[YouTube API] Missing videoId parameter");
     return NextResponse.json(
-      { error: "Missing videoId parameter" },
+      {
+        error:
+          "Missing videoId parameter. Please provide a valid YouTube videoId as a query parameter.",
+      },
       { status: 400 }
     );
   }
@@ -14,51 +20,39 @@ export async function GET(request: Request) {
   try {
     // Create standardized YouTube URL from video ID
     const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-
-    const pythonApiResponse = await fetch("http://127.0.0.1:5001/video", {
+    console.log("[YouTube API] Posting to Python backend for:", videoUrl);
+    const pythonResponse = await fetch("http://127.0.0.1:5001/video", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        url: videoUrl,
-        segmentDuration: 30,
-        chunkSize: 300, // 5 minutes per chunk
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: videoUrl }),
     });
 
-    if (pythonApiResponse.ok) {
-      const data = await pythonApiResponse.json();
-      console.log("Python API response:", data);
-
-      return NextResponse.json({
-        title: data.title || `YouTube Video (${videoId})`,
-        channelTitle: data.uploaded_by || "Unknown Channel",
-        publishedAt: data.uploaded_at || new Date().toISOString(),
-        thumbnailUrl: "", // Python API doesn't provide thumbnail
-        transcript: data.transcript || "", // Include transcript from Python API
-        hasTranscript: !!data.transcript_chunk?.grouped_segments?.length, // Check for actual transcript segments
-        transcript_chunk: data.transcript_chunk, // Include full transcript chunk data
-        duration: data.duration, // Include video duration
-      });
-    }
-
-    // If Python API didn't respond properly, return error
-    const errorData = await pythonApiResponse.json().catch(() => ({}));
-    console.error("Python API failed:", {
-      status: pythonApiResponse.status,
-      statusText: pythonApiResponse.statusText,
-      error: errorData,
-    });
-
-    return NextResponse.json(
-      { error: "Failed to fetch video details" },
-      { status: pythonApiResponse.status }
+    const data = await pythonResponse.json();
+    console.log(
+      "[YouTube API] Python backend response:",
+      JSON.stringify(data, null, 2)
     );
+
+    const hasTranscript = !!data.transcript_chunk?.grouped_segments?.length;
+    console.log("[YouTube API] Computed hasTranscript:", hasTranscript);
+
+    return NextResponse.json({
+      title: data.title || `YouTube Video (${videoId})`,
+      channelTitle: data.uploaded_by || "Unknown Channel",
+      publishedAt: data.uploaded_at || new Date().toISOString(),
+      thumbnailUrl: "", // Python API doesn't provide thumbnail
+      transcript: data.transcript || "", // Include transcript from Python API
+      hasTranscript,
+      transcript_chunk: data.transcript_chunk, // Include full transcript chunk data
+      duration: data.duration, // Include video duration
+    });
   } catch (error) {
-    console.error("Error accessing Python API:", error);
+    console.error("[YouTube API] Error in GET /api/youtube:", error);
     return NextResponse.json(
-      { error: "Error accessing video details" },
+      {
+        error: "Failed to fetch video details or transcript.",
+        details: error?.toString(),
+      },
       { status: 500 }
     );
   }

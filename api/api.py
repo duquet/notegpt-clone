@@ -12,6 +12,17 @@ app = Flask(__name__)
 CORS(app)
 
 
+class QuietLogger:
+    def debug(self, msg):
+        pass
+
+    def warning(self, msg):
+        pass
+
+    def error(self, msg):
+        print(msg)  # Only print errors
+
+
 def extract_video_id(url):
     # Extracts the video ID from a YouTube URL
     patterns = [
@@ -31,6 +42,7 @@ def get_video_info(url):
         'skip_download': True,
         'extract_flat': True,
         'force_generic_extractor': False,
+        'logger': QuietLogger(),
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
