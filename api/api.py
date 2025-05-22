@@ -100,6 +100,11 @@ def get_video_transcript(url, start_time=None, duration=None):
         entries = transcript.fetch()
         print(f"Successfully fetched {len(entries)} transcript entries")
 
+        # Check if transcript is auto-generated
+        is_generated = transcript.is_generated
+        print(
+            f"Transcript is {'auto-generated' if is_generated else 'human-generated'}")
+
         # Convert FetchedTranscriptSnippet objects to dictionaries
         entries = [{'text': entry.text, 'start': entry.start,
                     'duration': entry.duration} for entry in entries]
@@ -115,7 +120,7 @@ def get_video_transcript(url, start_time=None, duration=None):
             print("No transcript entries found after filtering")
             return None
 
-        return entries
+        return {'entries': entries, 'is_generated': is_generated}
     except Exception as e:
         print(f"Transcript error: {str(e)}")
         print(f"Full error details: {type(e).__name__}: {str(e)}")
@@ -126,7 +131,7 @@ def get_video_transcript_chunked(url, start_time, duration):
     entries = get_video_transcript(url)
     if not entries:
         return None
-    chunk = [entry for entry in entries if start_time <=
+    chunk = [entry for entry in entries['entries'] if start_time <=
              entry['start'] < start_time + duration]
     return chunk
 
@@ -173,19 +178,12 @@ def clean_text(text, should_capitalize_first=True):
     return ". ".join(processed_sentences)
 
 
-def group_transcript_by_interval(entries, interval=30):
-    if not entries or len(entries) == 0:
+def group_transcript_by_interval(entries, interval, is_generated=False):
+    if not entries:
         return []
 
-    # Pre-allocate the list with estimated size
-    # Assuming ~5 seconds per entry
-    estimated_groups = len(entries) // (interval // 5)
     grouped = []
-    grouped.reserve(estimated_groups) if hasattr(grouped, 'reserve') else None
-
-    # Flag to track if previous segment ended with sentence-ending punctuation
-    # Start with True since first segment should be capitalized
-    prev_ended_with_punct = True
+    prev_ended_with_punct = True  # Start with True to capitalize first word
 
     current_group = {
         'startTime': entries[0]['start'],
@@ -195,24 +193,24 @@ def group_transcript_by_interval(entries, interval=30):
 
     for entry in entries[1:]:
         if entry['start'] >= current_group['endTime']:
-            # Process the current group's text with wtpsplit before saving
-            try:
-                # Split the text into proper sentences
-                sentences = sat.split(current_group['text'])
-                # Join sentences with proper punctuation and clean text
-                current_group['text'] = clean_text(
-                    ". ".join(sentences), prev_ended_with_punct)
-                # Update flag based on last character of current segment
-                prev_ended_with_punct = current_group['text'].rstrip(
-                )[-1] in '.!?'
-            except Exception as e:
-                print(f"Error processing text with wtpsplit: {str(e)}")
-                # If wtpsplit fails, clean the original text
-                current_group['text'] = clean_text(
-                    current_group['text'], prev_ended_with_punct)
-                # Update flag based on last character of current segment
-                prev_ended_with_punct = current_group['text'].rstrip(
-                )[-1] in '.!?'
+            # Process the current group's text
+            if is_generated:
+                try:
+                    # For auto-generated captions, use wtpsplit to split sentences and clean text
+                    sentences = sat.split(current_group['text'])
+                    current_group['text'] = clean_text(
+                        ". ".join(sentences), prev_ended_with_punct)
+                    prev_ended_with_punct = current_group['text'].rstrip(
+                    )[-1] in '.!?'
+                except Exception as e:
+                    print(f"Error processing text with wtpsplit: {str(e)}")
+                    current_group['text'] = clean_text(
+                        current_group['text'], prev_ended_with_punct)
+                    prev_ended_with_punct = current_group['text'].rstrip(
+                    )[-1] in '.!?'
+            else:
+                # For human-generated captions, just join the text without processing
+                current_group['text'] = current_group['text'].strip()
 
             # Save current group and start a new one
             grouped.append(current_group)
@@ -226,15 +224,17 @@ def group_transcript_by_interval(entries, interval=30):
             current_group['text'] += ' ' + entry['text']
 
     # Process the last group's text
-    try:
-        sentences = sat.split(current_group['text'])
-        current_group['text'] = clean_text(
-            ". ".join(sentences), prev_ended_with_punct)
-    except Exception as e:
-        print(f"Error processing text with wtpsplit: {str(e)}")
-        # If wtpsplit fails, clean the original text
-        current_group['text'] = clean_text(
-            current_group['text'], prev_ended_with_punct)
+    if is_generated:
+        try:
+            sentences = sat.split(current_group['text'])
+            current_group['text'] = clean_text(
+                ". ".join(sentences), prev_ended_with_punct)
+        except Exception as e:
+            print(f"Error processing text with wtpsplit: {str(e)}")
+            current_group['text'] = clean_text(
+                current_group['text'], prev_ended_with_punct)
+    else:
+        current_group['text'] = current_group['text'].strip()
 
     # Add the last group
     grouped.append(current_group)
@@ -277,7 +277,7 @@ def get_video():
                 transcript = get_video_transcript(url, 0, chunk_size)
                 if transcript:
                     print(
-                        f"[DEBUG] Successfully fetched transcript with {len(transcript)} entries")
+                        f"[DEBUG] Successfully fetched transcript with {len(transcript['entries'])} entries")
                     break
                 else:
                     print(
@@ -324,8 +324,10 @@ def get_video():
 
         # Process transcript segments
         try:
+            print(
+                f"Processing {'auto-generated' if transcript['is_generated'] else 'human-generated'} captions")
             grouped_segments = group_transcript_by_interval(
-                transcript, interval)
+                transcript['entries'], interval, transcript['is_generated'])
             print(f"[DEBUG] Created {len(grouped_segments)} grouped segments")
         except Exception as e:
             print(f"[ERROR] Failed to group transcript segments: {str(e)}")
@@ -346,7 +348,8 @@ def get_video():
                 'end_time': min(chunk_size, video_info['duration']),
                 'segment_duration': interval,
                 'total_duration': video_info['duration'],
-                'chunk_size': chunk_size
+                'chunk_size': chunk_size,
+                'is_generated': transcript['is_generated']
             }
         }
         print(f"[DEBUG] Successfully processed video request for: {url}")
@@ -386,7 +389,8 @@ def get_video_chunk():
             return jsonify({'error': 'Failed to get transcript chunk'}), 400
 
         print("Transcript chunk retrieved successfully")
-        grouped_segments = group_transcript_by_interval(chunk, interval)
+        grouped_segments = group_transcript_by_interval(
+            chunk['entries'], interval, chunk['is_generated'])
 
         return jsonify({
             'grouped_segments': grouped_segments,

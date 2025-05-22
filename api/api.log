@@ -1,296 +1,319 @@
+andewduquet@Andews-MBP-2 notegpt-clone % cd api
+andewduquet@Andews-MBP-2 api % python3 api.py
  * Serving Flask app 'api'
  * Debug mode: on
-[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
  * Running on all addresses (0.0.0.0)
  * Running on http://127.0.0.1:5001
  * Running on http://192.168.1.182:5001
-[33mPress CTRL+C to quit[0m
+Press CTRL+C to quit
  * Restarting with stat
  * Debugger is active!
- * Debugger PIN: 652-639-473
+ * Debugger PIN: 791-146-829
+[DEBUG] Incoming /video payload: {'url': 'https://www.youtube.com/watch?v=C4ylGGYD-3c', 'segmentDuration': 30, 'chunkSize': 300}
+[DEBUG] Processing video URL: https://www.youtube.com/watch?v=C4ylGGYD-3c (segment interval: 30s, chunk size: 300s)
 WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = 1YZo4CSQtZ6ZdXgGiz ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+         n = a3bX9ANmwQt6twGHZDu ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = dLGDGlbXS5EcgX1w_6 ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+         n = kSbmg6-24EhJ--_Kr9J ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = 5bPNb7GGnu4ETe5I4C ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+         n = oVfKUSRqKjMfjQNZj4A ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
-127.0.0.1 - - [19/May/2025 13:46:13] "POST /video HTTP/1.1" 200 -
-127.0.0.1 - - [19/May/2025 13:46:13] "OPTIONS /video HTTP/1.1" 200 -
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = PB3GC2XNx3lOB6Dz43 ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = jzqfCwZS77u5e5KArA ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = g6bpqIluS9zUcqh7-xo ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = 1eD1tR8lek3hdSvD1m ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = 32vfIdEbOGz0Lf_eDxW ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+[DEBUG] Video info retrieved: {'title': '17 Brutal Lessons To Get Filthy Rich', 'uploaded_by': 'My First Million', 'uploaded_at': '20240506', 'duration': 3645}
+[DEBUG] Transcript fetch attempt 1/3
+Fetching transcript for video ID: C4ylGGYD-3c
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/youtube_transcript_api/_api.py:184: DeprecationWarning: `list_transcripts` is deprecated and will be removed in a future version. Use the `list` method instead!
+  warnings.warn(
+Found English transcript
+Successfully fetched 1680 transcript entries
+Transcript is auto-generated
+Filtered to 130 entries for time range 0-300
+[DEBUG] Successfully fetched transcript with 130 entries
+Processing auto-generated captions
+[DEBUG] Created 1 grouped segments
+[DEBUG] Successfully processed video request for: https://www.youtube.com/watch?v=C4ylGGYD-3c
+127.0.0.1 - - [21/May/2025 16:43:25] "POST /video HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2025 16:43:25] "OPTIONS /video HTTP/1.1" 200 -
+[DEBUG] Incoming /video payload: {'url': 'https://www.youtube.com/watch?v=C4ylGGYD-3c', 'segmentDuration': 30, 'chunkSize': 300}
+[DEBUG] Processing video URL: https://www.youtube.com/watch?v=C4ylGGYD-3c (segment interval: 30s, chunk size: 300s)
+[DEBUG] Incoming /video payload: {'url': 'https://www.youtube.com/watch?v=C4ylGGYD-3c', 'segmentDuration': 30, 'chunkSize': 300}
+[DEBUG] Processing video URL: https://www.youtube.com/watch?v=C4ylGGYD-3c (segment interval: 30s, chunk size: 300s)
 WARNING: [youtube] Falling back to generic n function search
          player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = mBXGUofAMt81fRv0nBb ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
-127.0.0.1 - - [19/May/2025 13:46:17] "POST /video HTTP/1.1" 200 -
-127.0.0.1 - - [19/May/2025 13:46:17] "POST /video HTTP/1.1" 200 -
+         n = k7XJSipLsXIvQKmobkZ ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] Falling back to generic n function search
          player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = WIvSAj0zSp2iUnhS2Da ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+         n = zLvSkpyN2SuMXvWSxcV ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] Falling back to generic n function search
          player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = oTbAw9thkFOFA5Hpydg ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = 7_XvC4MNK067p1pUCBX ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+         n = 3VvNkgcModRmId3lW7B ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
 WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+         player = https://www.youtube.com/s/player/59b252b9/player_ias.vflset/en_US/base.js
 WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = u4IhKjgH6fN-oIjo7r ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+         n = Kj_ZFS4A33SAFvTz7yH3 ; player = https://www.youtube.com/s/player/59b252b9/player_ias.vflset/en_US/base.js
 WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+         player = https://www.youtube.com/s/player/59b252b9/player_ias.vflset/en_US/base.js
 WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = uEf-shI8Au0iMlOa7Q ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+         n = cT7X-3QMIoUSIqhqrRC2 ; player = https://www.youtube.com/s/player/59b252b9/player_ias.vflset/en_US/base.js
 WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+         player = https://www.youtube.com/s/player/59b252b9/player_ias.vflset/en_US/base.js
 WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = kzIEhG53jb82HahVl1 ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+         n = 7oY1EHolNiuP7sOsmxqF ; player = https://www.youtube.com/s/player/59b252b9/player_ias.vflset/en_US/base.js
 WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
-127.0.0.1 - - [19/May/2025 13:46:21] "POST /video HTTP/1.1" 200 -
-127.0.0.1 - - [19/May/2025 13:46:21] "OPTIONS /video HTTP/1.1" 200 -
-127.0.0.1 - - [19/May/2025 13:46:21] "POST /video HTTP/1.1" 200 -
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = mahf7jPZrTMKGkSrAT ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = xzYan0apQ9IJXYKsAZ ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = wifbV1ctxbbH1vy8yDs ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = V5uWZgyD5wb9i3Znuy ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = 5cXzk8PWoMny2MgVx89 ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = 4wbD4VfbzfFWqC02sJd ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
-127.0.0.1 - - [19/May/2025 13:46:25] "POST /video HTTP/1.1" 200 -
-127.0.0.1 - - [19/May/2025 13:46:26] "POST /video HTTP/1.1" 200 -
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = xZW4HjgQpisHWx0F1V ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = ZykrZ6_lJG1JFOIDJD ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+[DEBUG] Video info retrieved: {'title': '17 Brutal Lessons To Get Filthy Rich', 'uploaded_by': 'My First Million', 'uploaded_at': '20240506', 'duration': 3645}
+[DEBUG] Transcript fetch attempt 1/3
+Fetching transcript for video ID: C4ylGGYD-3c
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/youtube_transcript_api/_api.py:184: DeprecationWarning: `list_transcripts` is deprecated and will be removed in a future version. Use the `list` method instead!
+  warnings.warn(
+[DEBUG] Video info retrieved: {'title': '17 Brutal Lessons To Get Filthy Rich', 'uploaded_by': 'My First Million', 'uploaded_at': '20240506', 'duration': 3645}
+[DEBUG] Transcript fetch attempt 1/3
+Fetching transcript for video ID: C4ylGGYD-3c
+Found English transcript
+Error fetching transcript entries: no element found: line 1, column 0
+Second attempt also failed: no element found: line 1, column 0
+[WARN] Empty transcript returned on attempt 1
+Found English transcript
+Successfully fetched 1680 transcript entries
+Transcript is auto-generated
+Filtered to 130 entries for time range 0-300
+[DEBUG] Successfully fetched transcript with 130 entries
+Processing auto-generated captions
+[DEBUG] Transcript fetch attempt 2/3
+Fetching transcript for video ID: C4ylGGYD-3c
+[DEBUG] Created 1 grouped segments
+[DEBUG] Successfully processed video request for: https://www.youtube.com/watch?v=C4ylGGYD-3c
+127.0.0.1 - - [21/May/2025 16:43:30] "POST /video HTTP/1.1" 200 -
+Found English transcript
+Successfully fetched 1680 transcript entries
+Transcript is auto-generated
+Filtered to 130 entries for time range 0-300
+[DEBUG] Successfully fetched transcript with 130 entries
+Processing auto-generated captions
+[DEBUG] Created 1 grouped segments
+[DEBUG] Successfully processed video request for: https://www.youtube.com/watch?v=C4ylGGYD-3c
+127.0.0.1 - - [21/May/2025 16:43:32] "POST /video HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2025 16:43:32] "OPTIONS /video HTTP/1.1" 200 -
+[DEBUG] Incoming /video payload: {'url': 'https://www.youtube.com/watch?v=C4ylGGYD-3c', 'segmentDuration': 30, 'chunkSize': 300}
+[DEBUG] Processing video URL: https://www.youtube.com/watch?v=C4ylGGYD-3c (segment interval: 30s, chunk size: 300s)
+[DEBUG] Incoming /video payload: {'url': 'https://www.youtube.com/watch?v=C4ylGGYD-3c', 'segmentDuration': 30, 'chunkSize': 300}
+[DEBUG] Processing video URL: https://www.youtube.com/watch?v=C4ylGGYD-3c (segment interval: 30s, chunk size: 300s)
 WARNING: [youtube] Falling back to generic n function search
          player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = jDdQyeWTk_CI7_4Tcz ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
+         n = WrbwCbytgpKjkcAf5lZ ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = 4zfJWCxsmJzAZ6ELM6W ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+         n = 2ab_R-eyR6-cNhYstcm ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = F3faHYqp2zFnOERXh_l ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
 WARNING: [youtube] Falling back to generic n function search
          player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = PVXWaXE_BHYTyDZ5aEi ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+         n = yQvEimzBOS5chB1twlR ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] Falling back to generic n function search
          player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = 74blckatdTKvsafDx2M ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
-127.0.0.1 - - [19/May/2025 13:46:30] "POST /video HTTP/1.1" 200 -
-127.0.0.1 - - [19/May/2025 13:46:30] "POST /video HTTP/1.1" 200 -
-127.0.0.1 - - [19/May/2025 13:46:30] "OPTIONS /video HTTP/1.1" 200 -
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = oFhYsaeAiwPS0mwKt- ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = pCLWI7x0THO29OdGHg ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = 0Wh9Vh986oL49KT76U ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
-127.0.0.1 - - [19/May/2025 13:46:34] "POST /video HTTP/1.1" 200 -
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = Z6EN6f5K753ku3Jcm8 ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = 3HC30b364pRXMFOYgs ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = mi-u938vAr5XxyWq3H ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
-127.0.0.1 - - [19/May/2025 14:10:27] "POST /video HTTP/1.1" 200 -
-127.0.0.1 - - [19/May/2025 14:10:27] "OPTIONS /video HTTP/1.1" 200 -
+         n = MZbUesNlhJCf3Ldr_4G ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] Falling back to generic n function search
          player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = m3vBMoNELj3kAoBZCJZ ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+         n = ZwX2NZ9vSKCRxv-Lm-5 ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+[DEBUG] Video info retrieved: {'title': '17 Brutal Lessons To Get Filthy Rich', 'uploaded_by': 'My First Million', 'uploaded_at': '20240506', 'duration': 3645}
+[DEBUG] Transcript fetch attempt 1/3
+Fetching transcript for video ID: C4ylGGYD-3c
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/youtube_transcript_api/_api.py:184: DeprecationWarning: `list_transcripts` is deprecated and will be removed in a future version. Use the `list` method instead!
+  warnings.warn(
+[DEBUG] Video info retrieved: {'title': '17 Brutal Lessons To Get Filthy Rich', 'uploaded_by': 'My First Million', 'uploaded_at': '20240506', 'duration': 3645}
+[DEBUG] Transcript fetch attempt 1/3
+Fetching transcript for video ID: C4ylGGYD-3c
+Found English transcript
+Found English transcript
+Successfully fetched 1680 transcript entries
+Transcript is auto-generated
+Filtered to 130 entries for time range 0-300
+[DEBUG] Successfully fetched transcript with 130 entries
+Processing auto-generated captions
+Successfully fetched 1680 transcript entries
+Transcript is auto-generated
+Filtered to 130 entries for time range 0-300
+[DEBUG] Successfully fetched transcript with 130 entries
+Processing auto-generated captions
+[DEBUG] Created 1 grouped segments
+[DEBUG] Successfully processed video request for: https://www.youtube.com/watch?v=C4ylGGYD-3c
+127.0.0.1 - - [21/May/2025 16:43:38] "POST /video HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2025 16:43:38] "OPTIONS /video HTTP/1.1" 200 -
+[DEBUG] Incoming /video payload: {'url': 'https://www.youtube.com/watch?v=C4ylGGYD-3c', 'segmentDuration': 30, 'chunkSize': 300}
+[DEBUG] Processing video URL: https://www.youtube.com/watch?v=C4ylGGYD-3c (segment interval: 30s, chunk size: 300s)
+[DEBUG] Created 1 grouped segments
+[DEBUG] Successfully processed video request for: https://www.youtube.com/watch?v=C4ylGGYD-3c
+127.0.0.1 - - [21/May/2025 16:43:38] "POST /video HTTP/1.1" 200 -
+[DEBUG] Incoming /video payload: {'url': 'https://www.youtube.com/watch?v=C4ylGGYD-3c', 'segmentDuration': 30, 'chunkSize': 300}
+[DEBUG] Processing video URL: https://www.youtube.com/watch?v=C4ylGGYD-3c (segment interval: 30s, chunk size: 300s)
+[DEBUG] Incoming /video payload: {'url': 'https://www.youtube.com/watch?v=C4ylGGYD-3c', 'segmentDuration': 30, 'chunkSize': 300}
+[DEBUG] Processing video URL: https://www.youtube.com/watch?v=C4ylGGYD-3c (segment interval: 30s, chunk size: 300s)
 WARNING: [youtube] Falling back to generic n function search
          player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = tvXvNSoIgubFb2tPyql ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+         n = ckfaX4jFhT5R3iP9b6j ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] Falling back to generic n function search
          player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = I0fImdPKXlNxx4suz5s ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = j3y-Qr23HTybtZjSOu ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = Bi-OzPeegLpvpdta__ ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = 4EDdvqsXZUYAptHTs2 ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
-127.0.0.1 - - [19/May/2025 14:10:31] "POST /video HTTP/1.1" 200 -
-127.0.0.1 - - [19/May/2025 14:10:31] "POST /video HTTP/1.1" 200 -
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = 4tBx-czmTAPRZfz968 ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = S9GEFxWVCVPVpoVLjy ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = k49V7gHqvOHrz0_SMg ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = nFmcu55sZuVl-Nizoa ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = XC0bjGYxQLcmuiszbF ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = z-atXow0lCbIX-dcJD ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
-127.0.0.1 - - [19/May/2025 14:10:34] "POST /video HTTP/1.1" 200 -
-127.0.0.1 - - [19/May/2025 14:10:34] "OPTIONS /video HTTP/1.1" 200 -
-127.0.0.1 - - [19/May/2025 14:10:35] "POST /video HTTP/1.1" 200 -
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = 9g6efwtl1UOdKTYz7m ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = Z4z1EDbVhfcGAM9ZdK ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = je84xQhcWhqOFQfPPb ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = ZgqjyAYc-StQ1BgJ-u ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = TDfTEvWwpj912GHnWj ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = wmTas3xP4aLgcgqH1L ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
-127.0.0.1 - - [19/May/2025 14:10:38] "POST /video HTTP/1.1" 200 -
-127.0.0.1 - - [19/May/2025 14:10:38] "POST /video HTTP/1.1" 200 -
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = eI7B0u8-9owQhmgBTr ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = D7gWSn0Q3XJ_JMJ-Hi ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = PIXqH7CE_ahbUmagGC ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = Mo1HFY4bMAlSTvGsv4 ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = uppiROGrTcT92auKLh ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = tyz3ppjXbKxG5itUNV ; player = https://www.youtube.com/s/player/1b376dba/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
-127.0.0.1 - - [19/May/2025 14:10:42] "POST /video HTTP/1.1" 200 -
-127.0.0.1 - - [19/May/2025 14:10:42] "OPTIONS /video HTTP/1.1" 200 -
+         n = X7fzOxERsFQYBkwOsBP ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] Falling back to generic n function search
          player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = AwfKjWluQf_zUoeFmXV ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = HIvfIbCjWtRdFAzOZM1 ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
-WARNING: [youtube] Falling back to generic n function search
-         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
-WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
-         n = gNfokth5o2Kckav5E39 ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+         n = zvbz0Et5UGkV1ogbT7n ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
 WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
-127.0.0.1 - - [19/May/2025 14:10:46] "POST /video HTTP/1.1" 200 -
-127.0.0.1 - - [19/May/2025 14:10:46] "POST /video HTTP/1.1" 200 -
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = sxXfYtChcJPIvGsaMGG ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = 8IX8NsO37QeE-624dvD ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = mcv5MgXy2kXumn5hq33 ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+[DEBUG] Video info retrieved: {'title': '17 Brutal Lessons To Get Filthy Rich', 'uploaded_by': 'My First Million', 'uploaded_at': '20240506', 'duration': 3645}
+[DEBUG] Transcript fetch attempt 1/3
+Fetching transcript for video ID: C4ylGGYD-3c
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/youtube_transcript_api/_api.py:184: DeprecationWarning: `list_transcripts` is deprecated and will be removed in a future version. Use the `list` method instead!
+  warnings.warn(
+[DEBUG] Video info retrieved: {'title': '17 Brutal Lessons To Get Filthy Rich', 'uploaded_by': 'My First Million', 'uploaded_at': '20240506', 'duration': 3645}
+[DEBUG] Transcript fetch attempt 1/3
+Fetching transcript for video ID: C4ylGGYD-3c
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/59b252b9/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = YYLOSMgrCmKnE8zkncli ; player = https://www.youtube.com/s/player/59b252b9/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/59b252b9/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = kdTwbRNb1UqJYxyq152O ; player = https://www.youtube.com/s/player/59b252b9/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/59b252b9/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = 5mYtsseaoa6ovvn8OR4r ; player = https://www.youtube.com/s/player/59b252b9/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+Found English transcript
+Found English transcript
+Error fetching transcript entries: no element found: line 1, column 0
+[DEBUG] Video info retrieved: {'title': '17 Brutal Lessons To Get Filthy Rich', 'uploaded_by': 'My First Million', 'uploaded_at': '20240506', 'duration': 3645}
+[DEBUG] Transcript fetch attempt 1/3
+Fetching transcript for video ID: C4ylGGYD-3c
+Successfully fetched 1680 transcript entries
+Transcript is auto-generated
+Filtered to 130 entries for time range 0-300
+[DEBUG] Successfully fetched transcript with 130 entries
+Processing auto-generated captions
+Second attempt also failed: no element found: line 1, column 0
+[WARN] Empty transcript returned on attempt 1
+Found English transcript
+Successfully fetched 1680 transcript entries
+Transcript is auto-generated
+Filtered to 130 entries for time range 0-300
+[DEBUG] Successfully fetched transcript with 130 entries
+Processing auto-generated captions
+[DEBUG] Transcript fetch attempt 2/3
+Fetching transcript for video ID: C4ylGGYD-3c
+[DEBUG] Created 1 grouped segments
+[DEBUG] Successfully processed video request for: https://www.youtube.com/watch?v=C4ylGGYD-3c
+127.0.0.1 - - [21/May/2025 16:43:44] "POST /video HTTP/1.1" 200 -
+127.0.0.1 - - [21/May/2025 16:43:44] "OPTIONS /video HTTP/1.1" 200 -
+[DEBUG] Incoming /video payload: {'url': 'https://www.youtube.com/watch?v=C4ylGGYD-3c', 'segmentDuration': 30, 'chunkSize': 300}
+[DEBUG] Processing video URL: https://www.youtube.com/watch?v=C4ylGGYD-3c (segment interval: 30s, chunk size: 300s)
+Found English transcript
+Error fetching transcript entries: no element found: line 1, column 0
+Second attempt also failed: no element found: line 1, column 0
+[WARN] Empty transcript returned on attempt 2
+[DEBUG] Transcript fetch attempt 3/3
+Fetching transcript for video ID: C4ylGGYD-3c
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/youtube_transcript_api/_api.py:184: DeprecationWarning: `list_transcripts` is deprecated and will be removed in a future version. Use the `list` method instead!
+  warnings.warn(
+[DEBUG] Created 1 grouped segments
+[DEBUG] Successfully processed video request for: https://www.youtube.com/watch?v=C4ylGGYD-3c
+127.0.0.1 - - [21/May/2025 16:43:45] "POST /video HTTP/1.1" 200 -
+[DEBUG] Incoming /video payload: {'url': 'https://www.youtube.com/watch?v=C4ylGGYD-3c', 'segmentDuration': 30, 'chunkSize': 300}
+[DEBUG] Processing video URL: https://www.youtube.com/watch?v=C4ylGGYD-3c (segment interval: 30s, chunk size: 300s)
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = 3oXOJ1bObxkFXv6_xkt ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = 6ibzkyKznz8APtfhRND ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = yOXGNLP2gEDjcOc0CXH ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+Found English transcript
+Error fetching transcript entries: no element found: line 1, column 0
+[DEBUG] Video info retrieved: {'title': '17 Brutal Lessons To Get Filthy Rich', 'uploaded_by': 'My First Million', 'uploaded_at': '20240506', 'duration': 3645}
+[DEBUG] Transcript fetch attempt 1/3
+Fetching transcript for video ID: C4ylGGYD-3c
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/youtube_transcript_api/_api.py:184: DeprecationWarning: `list_transcripts` is deprecated and will be removed in a future version. Use the `list` method instead!
+  warnings.warn(
+Second attempt also failed: no element found: line 1, column 0
+[WARN] Empty transcript returned on attempt 3
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = WibAgPScFPql8-J43ap ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+[ERROR] Failed to get transcript after all retries
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+127.0.0.1 - - [21/May/2025 16:43:47] "POST /video HTTP/1.1" 404 -
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = L7bgdjHVvj_Hrb4donQ ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] Falling back to generic n function search
+         player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: nsig extraction failed: Some formats may be missing
+         n = QsXdpEtyE8jeGJwn870 ; player = https://www.youtube.com/s/player/804c67d2/player_ias.vflset/en_US/base.js
+WARNING: [youtube] C4ylGGYD-3c: Some web client https formats have been skipped as they are missing a url. The current session may have the SSAP (server-side ads) experiment which interferes with yt-dlp. Please see  https://github.com/yt-dlp/yt-dlp/issues/12482  for more details.
+Found English transcript
+Successfully fetched 1680 transcript entries
+Transcript is auto-generated
+Filtered to 130 entries for time range 0-300
+[DEBUG] Video info retrieved: {'title': '17 Brutal Lessons To Get Filthy Rich', 'uploaded_by': 'My First Million', 'uploaded_at': '20240506', 'duration': 3645}
+[DEBUG] Transcript fetch attempt 1/3
+Fetching transcript for video ID: C4ylGGYD-3c
+[DEBUG] Successfully fetched transcript with 130 entries
+Processing auto-generated captions
+Found English transcript
+Error fetching transcript entries: no element found: line 1, column 0
+Second attempt also failed: no element found: line 1, column 0
+[WARN] Empty transcript returned on attempt 1
+[DEBUG] Created 1 grouped segments
+[DEBUG] Successfully processed video request for: https://www.youtube.com/watch?v=C4ylGGYD-3c
+127.0.0.1 - - [21/May/2025 16:43:49] "POST /video HTTP/1.1" 200 -
+[DEBUG] Transcript fetch attempt 2/3
+Fetching transcript for video ID: C4ylGGYD-3c
+Found English transcript
+Successfully fetched 1680 transcript entries
+Transcript is auto-generated
+Filtered to 130 entries for time range 0-300
+[DEBUG] Successfully fetched transcript with 130 entries
+Processing auto-generated captions
+[DEBUG] Created 1 grouped segments
+[DEBUG] Successfully processed video request for: https://www.youtube.com/watch?v=C4ylGGYD-3c
+127.0.0.1 - - [21/May/2025 16:43:52] "POST /video HTTP/1.1" 200 -
