@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from "firebase/app";
-import { getAuth, connectAuthEmulator } from "firebase/auth";
+import { getAuth, connectAuthEmulator, Auth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -12,7 +12,7 @@ const firebaseConfig = {
 
 // Initialize Firebase only on the client side
 let app = null;
-let auth = null;
+let auth: Auth | null = null;
 
 if (typeof window !== "undefined" && getApps().length === 0) {
   app = initializeApp(firebaseConfig);
