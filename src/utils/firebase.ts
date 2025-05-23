@@ -10,13 +10,21 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase only once
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
-const auth = getAuth(app);
+// Initialize Firebase only on the client side
+let app = null;
+let auth = null;
 
-// Connect to Firebase Emulator in development if available
-if (process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === "true") {
-  connectAuthEmulator(auth, "http://localhost:9099");
+if (typeof window !== "undefined" && getApps().length === 0) {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+
+  // Connect to Firebase Emulator in development if available
+  if (
+    process.env.NODE_ENV === "development" &&
+    process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === "true"
+  ) {
+    connectAuthEmulator(auth, "http://localhost:9099");
+  }
 }
 
-export { auth }; 
+export { auth };
