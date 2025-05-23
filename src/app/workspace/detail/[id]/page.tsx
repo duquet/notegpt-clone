@@ -41,7 +41,6 @@ import DownloadIcon from "@mui/icons-material/Download";
 import ShareIcon from "@mui/icons-material/Share";
 import AddIcon from "@mui/icons-material/Add";
 import PercentIcon from "@mui/icons-material/Percent";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import EditIcon from "@mui/icons-material/Edit";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
@@ -52,7 +51,6 @@ import LanguageIcon from "@mui/icons-material/Language";
 import NotesIcon from "@mui/icons-material/Notes";
 import ChatIcon from "@mui/icons-material/Chat";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
-import RefreshIcon from "@mui/icons-material/Refresh";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import MessageIcon from "@mui/icons-material/Message";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -69,18 +67,20 @@ import ReactMarkdown from "react-markdown";
 import SchoolIcon from "@mui/icons-material/School";
 import { v4 as uuidv4 } from "uuid";
 import ImageIcon from "@mui/icons-material/Image";
-import { Document, Page, pdfjs } from "react-pdf";
+import { pdfjs } from "react-pdf";
 import "react-pdf/dist/esm/Page/AnnotationLayer.css";
 import "react-pdf/dist/esm/Page/TextLayer.css";
 import PDFViewer from "@/app/workspace/detail/[id]/components/PDFViewer";
 import { extractPdfText } from "@/utils/pdfUtils";
 import summaryPrompts from "@/utils/summaryPrompts.json";
+import AccountTreeIcon from "@mui/icons-material/AccountTree";
+import MindMap from "@/app/workspace/detail/[id]/components/MindMap";
 
 // Add YouTube API types
 declare global {
   interface Window {
     YT: {
-      Player: any;
+      Player: unknown;
       PlayerState: {
         PLAYING: number;
         PAUSED: number;
@@ -549,7 +549,9 @@ export default function VideoDetailsPage() {
 
     // Log network conditions if available
     if ("connection" in navigator) {
-      const connection = (navigator as any).connection as NetworkInformation;
+      const connection = (
+        navigator as Navigator & { connection?: NetworkInformation }
+      ).connection;
       console.log("[Performance] Network conditions:", {
         effectiveType: connection?.effectiveType,
         downlink: connection?.downlink,
@@ -578,7 +580,6 @@ export default function VideoDetailsPage() {
 
   const { recentVideos, updateVideoTitle } = useAppContext();
   const [tabValue, setTabValue] = useState(0);
-  const [rightTabValue, setRightTabValue] = useState(0);
   const [videoTitle, setVideoTitle] = useState("Loading...");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState("");
@@ -692,6 +693,12 @@ export default function VideoDetailsPage() {
 
   const [currentTime, setCurrentTime] = useState(0);
   const timeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const [showMindMap, setShowMindMap] = useState(false);
+
+  const handleMindMapClick = () => {
+    setShowMindMap((prev) => !prev);
+  };
 
   // Fetch video details on component mount OR set PDF title
   useEffect(() => {
@@ -1163,13 +1170,6 @@ export default function VideoDetailsPage() {
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
-  };
-
-  const handleRightTabChange = (
-    event: React.SyntheticEvent,
-    newValue: number
-  ) => {
-    setRightTabValue(newValue);
   };
 
   const handleEditTitle = () => {
@@ -3179,6 +3179,53 @@ export default function VideoDetailsPage() {
                     </IconButton>
                   </Tooltip>
 
+                  {/* Mind Map Button */}
+                  <Tooltip
+                    title={
+                      isPDF
+                        ? !pdfText
+                          ? "Please wait for the PDF to load."
+                          : "Create Mind Map"
+                        : transcriptLoading || translatedSegments.length === 0
+                        ? "Please wait for the transcript to load."
+                        : "Create Mind Map"
+                    }
+                  >
+                    <span>
+                      <IconButton
+                        onClick={handleMindMapClick}
+                        sx={{
+                          bgcolor: showMindMap
+                            ? theme.palette.primary.main
+                            : "transparent",
+                          color: showMindMap
+                            ? theme.palette.common.white
+                            : theme.palette.primary.main,
+                          "&:hover": {
+                            bgcolor: showMindMap
+                              ? theme.palette.primary.dark
+                              : theme.palette.primary.light,
+                          },
+                          "&:disabled": {
+                            bgcolor: "transparent",
+                            color: theme.palette.text.disabled,
+                          },
+                        }}
+                        disabled={
+                          isPDF
+                            ? !pdfText
+                            : transcriptLoading ||
+                              translatedSegments.length === 0
+                        }
+                      >
+                        <AccountTreeIcon />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                  {console.log(
+                    "[MindMapButton] Finished rendering Mind Map button (page.tsx)"
+                  )}
+                  {/* Add Note Button */}
                   <Tooltip title="Add Notes">
                     <IconButton
                       size="small"
@@ -4154,6 +4201,38 @@ export default function VideoDetailsPage() {
                     )}
                   </Paper>
                 ))}
+
+                {/* Mind Map Card - render below all summary cards */}
+                {showMindMap && (
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      border: `1px solid ${theme.palette.divider}`,
+                      borderRadius: 2,
+                      p: 2,
+                      bgcolor: theme.palette.background.paper,
+                      width: "100%",
+                      overflowY: "auto",
+                      pr: 1,
+                      mb: 2,
+                    }}
+                  >
+                    <MindMap
+                      content={
+                        isPDF
+                          ? pdfText
+                          : transcriptSegments
+                              .map((segment) => segment.text)
+                              .join(" ")
+                      }
+                      type={isPDF ? "pdf" : "video"}
+                      onError={(error: string) =>
+                        console.error("MindMap error:", error)
+                      }
+                      onDelete={() => setShowMindMap(false)}
+                    />
+                  </Paper>
+                )}
               </Box>
             </Box>
           </Grid>
