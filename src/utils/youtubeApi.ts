@@ -9,8 +9,8 @@ export interface VideoDetails {
   transcript?: string;
 }
 
-// Cache for API responses to prevent repeated failing calls
-const apiCache: Record<string, VideoDetails> = {};
+// Keep track of in-flight requests to prevent duplicates
+const pendingRequests = new Map<string, Promise<VideoDetails | null>>();
 
 /**
  * Fetch YouTube video details by ID using our API route
@@ -20,63 +20,70 @@ const apiCache: Record<string, VideoDetails> = {};
 export async function getYouTubeVideoDetails(
   videoId: string
 ): Promise<VideoDetails | null> {
-  // Check cache first
-  if (apiCache[videoId]) {
-    console.log("[YouTube API] Using cached data for video:", videoId);
-    return apiCache[videoId];
+  // Check if there's already a request in progress for this video
+  const existingRequest = pendingRequests.get(videoId);
+  if (existingRequest) {
+    return existingRequest;
   }
 
-  try {
-    console.log("[YouTube API] Fetching details for video:", videoId);
-    const response = await fetch(`/api/youtube?videoId=${videoId}`);
+  // Create new request
+  const request = (async () => {
+    try {
+      const response = await fetch(`/api/youtube?videoId=${videoId}`);
 
-    if (!response.ok) {
-      console.error("[YouTube API] Error response:", {
-        status: response.status,
-        statusText: response.statusText,
-      });
+      if (!response.ok) {
+        console.error("[YouTube API] Error response:", {
+          status: response.status,
+          statusText: response.statusText,
+        });
 
-      // Check for specific error codes
-      if (response.status === 429) {
-        console.warn("[YouTube API] Quota exceeded. Using fallback title.");
-        const fallback = createFallbackDetails(videoId);
-        apiCache[videoId] = fallback;
-        return fallback;
+        // Check for specific error codes
+        if (response.status === 429) {
+          console.warn("[YouTube API] Quota exceeded. Using fallback title.");
+          return createFallbackDetails(videoId);
+        }
+
+        const errorData = await response.json().catch(() => ({}));
+        console.error("[YouTube API] Error data:", errorData);
+
+        if (errorData.fallbackTitle) {
+          return {
+            title: errorData.fallbackTitle,
+            channelTitle: "Unknown Channel",
+            publishedAt: new Date().toISOString(),
+            thumbnailUrl: "",
+            transcript: "",
+          };
+        }
+        return null;
       }
 
-      const errorData = await response.json().catch(() => ({}));
-      console.error("[YouTube API] Error data:", errorData);
+      const data = await response.json();
 
-      if (errorData.fallbackTitle) {
-        const fallback = {
-          title: errorData.fallbackTitle,
-          channelTitle: "Unknown Channel",
-          publishedAt: new Date().toISOString(),
-          thumbnailUrl: "",
-          transcript: "",
-        };
-        apiCache[videoId] = fallback;
-        return fallback;
+      // Only log if we have a transcript
+      if (data.transcript_chunk?.grouped_segments?.length) {
+        console.log(
+          "[YouTube API] Successfully fetched data with transcript:",
+          {
+            title: data.title,
+            transcriptLength: data.transcript_chunk.grouped_segments.length,
+          }
+        );
       }
-      return null;
+
+      return data;
+    } catch (error) {
+      console.error("[YouTube API] Error fetching video details:", error);
+      return createFallbackDetails(videoId);
+    } finally {
+      // Clean up the pending request
+      pendingRequests.delete(videoId);
     }
+  })();
 
-    const data = await response.json();
-    console.log("[YouTube API] Successfully fetched data:", {
-      title: data.title,
-      hasTranscript: !!data.transcript,
-    });
-
-    // Cache successful response
-    apiCache[videoId] = data;
-    return data;
-  } catch (error) {
-    console.error("[YouTube API] Error fetching video details:", error);
-    // Cache the error response to prevent repeated failing calls
-    const fallback = createFallbackDetails(videoId);
-    apiCache[videoId] = fallback;
-    return fallback;
-  }
+  // Store the request
+  pendingRequests.set(videoId, request);
+  return request;
 }
 
 /**

@@ -28,23 +28,44 @@ export async function GET(request: Request) {
     });
 
     const data = await pythonResponse.json();
-    console.log(
-      "[YouTube API] Python backend response:",
-      JSON.stringify(data, null, 2)
-    );
 
-    const hasTranscript = !!data.transcript_chunk?.grouped_segments?.length;
-    console.log("[YouTube API] Computed hasTranscript:", hasTranscript);
+    // Check if the Python backend returned an error
+    if (!data.success) {
+      console.error("[YouTube API] Python backend error:", data.error);
+      return NextResponse.json(
+        {
+          error: data.error || "Failed to fetch video details",
+          details: data.details,
+          fallbackTitle: `YouTube Video (${videoId})`,
+        },
+        { status: pythonResponse.status }
+      );
+    }
+
+    const hasTranscript =
+      !!data.data?.transcript_chunk?.grouped_segments?.length;
+
+    // Only log transcript status if we have a transcript
+    if (hasTranscript) {
+      console.log("[YouTube API] Successfully fetched data with transcript:", {
+        title: data.data.title,
+        transcriptLength: data.data.transcript_chunk.grouped_segments.length,
+      });
+    } else {
+      console.log("[YouTube API] Successfully fetched data:", {
+        title: data.data.title,
+      });
+    }
 
     return NextResponse.json({
-      title: data.title || `YouTube Video (${videoId})`,
-      channelTitle: data.uploaded_by || "Unknown Channel",
-      publishedAt: data.uploaded_at || new Date().toISOString(),
+      title: data.data.title || `YouTube Video (${videoId})`,
+      channelTitle: data.data.uploaded_by || "Unknown Channel",
+      publishedAt: data.data.uploaded_at || new Date().toISOString(),
       thumbnailUrl: "", // Python API doesn't provide thumbnail
-      transcript: data.transcript || "", // Include transcript from Python API
+      transcript: data.data.transcript || "", // Include transcript from Python API
       hasTranscript,
-      transcript_chunk: data.transcript_chunk, // Include full transcript chunk data
-      duration: data.duration, // Include video duration
+      transcript_chunk: data.data.transcript_chunk, // Include full transcript chunk data
+      duration: data.data.duration, // Include video duration
     });
   } catch (error) {
     console.error("[YouTube API] Error in GET /api/youtube:", error);
@@ -52,6 +73,7 @@ export async function GET(request: Request) {
       {
         error: "Failed to fetch video details or transcript.",
         details: error?.toString(),
+        fallbackTitle: `YouTube Video (${videoId})`,
       },
       { status: 500 }
     );

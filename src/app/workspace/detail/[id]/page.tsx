@@ -33,6 +33,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  Skeleton,
 } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
@@ -702,165 +703,66 @@ export default function VideoDetailsPage() {
   const [currentTime, setCurrentTime] = useState(0);
   const timeIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Fetch video details on component mount OR set PDF title
+  // Add independent loading states
+  const [videoDetailsLoading, setVideoDetailsLoading] = useState(true);
+  const [playerReady, setPlayerReady] = useState(false);
+
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY_MS = 2000;
+
+  const hasFetched = useRef(false);
   useEffect(() => {
-    if (isPDF) {
-      // It's a PDF, set a title (e.g., from URL or a default)
-      // Extract filename from pdfUrl
-      const filename =
-        pdfUrl?.split("/").pop()?.replace(".pdf", "") || "PDF Document";
-      setVideoTitle(filename); // Use the same state variable
-      setLoading(false); // Ensure loading is stopped for PDF view
-      return;
-    }
+    fetchVideoDetailsWithRetry(params.id as string);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.id]);
 
-    // It's a video, proceed with fetching video details
-    const fetchVideoDetails = async () => {
-      debouncedLog("[VideoDetails] Starting to fetch video details");
-      try {
-        // First try to get from recent videos history
-        const savedVideo = recentVideos.find((video) => video.id === params.id);
-
-        if (savedVideo) {
-          debouncedLog(
-            "[VideoDetails] Found video in history:",
-            savedVideo.title
-          );
-          setVideoTitle(savedVideo.title);
-          setEditedTitle(savedVideo.title);
-          setLoading(false);
-        } else {
-          debouncedLog(
-            "[VideoDetails] Video not in history, fetching from API"
-          );
-          // If not in history, fetch from API
-          try {
-            const videoDetails = await getYouTubeVideoDetails(
-              params.id as string
-            );
-            if (videoDetails) {
-              debouncedLog(
-                "[VideoDetails] Successfully fetched video details:",
-                {
-                  title: videoDetails.title,
-                  hasTranscript: !!videoDetails.transcript,
-                }
-              );
-              setVideoTitle(videoDetails.title);
-              setEditedTitle(videoDetails.title);
-            } else {
-              debouncedLog("[VideoDetails] No video details returned from API");
-              const fallbackTitle = generateFallbackTitle(params.id as string);
-              setVideoTitle(fallbackTitle);
-              setEditedTitle(fallbackTitle);
-            }
-          } catch (error) {
-            debouncedLog("[VideoDetails] Error fetching video details:", error);
-            setApiError(true);
-            const fallbackTitle = generateFallbackTitle(params.id as string);
-            setVideoTitle(fallbackTitle);
-            setEditedTitle(fallbackTitle);
-          } finally {
-            setLoading(false);
-          }
-        }
-
-        // Fetch transcript
-        await fetchTranscript();
-      } catch (error) {
-        debouncedLog("[VideoDetails] Error in fetchVideoDetails:", error);
-        setLoading(false);
+  const fetchVideoDetailsWithRetry = async (videoId: string, attempt = 1) => {
+    setTranscriptLoading(true);
+    try {
+      const data = await getYouTubeVideoDetails(videoId);
+      if (!data) {
+        throw new Error("No data returned from API");
       }
-    };
+      setVideoTitle(data.title);
+      setEditedTitle(data.title);
+      if ("duration" in data && typeof data.duration === "number") {
+        setVideoDuration(data.duration);
+      }
+      setVideoDetailsLoading(false);
 
-    const fetchTranscript = async () => {
-      debouncedLog("[VideoDetails] Starting to fetch transcript");
-      setTranscriptLoading(true);
-      setError(null);
-
-      try {
-        debouncedLog("[VideoDetails] Fetching transcript from API");
-        const response = await fetch("http://127.0.0.1:5001/video", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            url: `https://www.youtube.com/watch?v=${params.id}`,
-            segmentDuration: 30,
-            chunkSize: CHUNK_DURATION,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          debouncedLog("[VideoDetails] Transcript API error:", {
-            status: response.status,
-            statusText: response.statusText,
-            error: errorData,
-          });
-          throw new Error(errorData.error || "Failed to fetch transcript");
-        }
-
-        const data = await response.json();
-        debouncedLog("[VideoDetails] Received transcript data:", {
-          hasTranscript: !!data.transcript_chunk,
-          transcriptLength:
-            data.transcript_chunk?.grouped_segments?.length || 0,
-        });
-
-        if (!data.transcript_chunk?.grouped_segments) {
-          throw new Error("No transcript data received");
-        }
-
-        // Calculate total chunks
-        const totalChunks = Math.ceil(data.duration / CHUNK_DURATION);
-        setTotalChunks(totalChunks);
-
-        // Set initial chunk
-        const initialChunk: TranscriptChunk = {
-          startTime: data.transcript_chunk.start_time,
-          endTime: data.transcript_chunk.end_time,
-          segments: data.transcript_chunk.grouped_segments.map(
-            (segment: any) => ({
-              startTime: segment.startTime,
-              endTime: segment.endTime,
-              text: segment.text,
-            })
-          ),
-        };
-
-        setTranscriptChunks([initialChunk]);
-        setTranscriptSegments(initialChunk.segments);
-        setCurrentChunkIndex(0);
-        setLastChunkEndTime(data.transcript_chunk.end_time);
-        setIsInitialLoad(false);
-      } catch (error) {
-        debouncedLog("[VideoDetails] Error fetching transcript:", error);
-        setError(
-          error instanceof Error ? error.message : "Failed to fetch transcript"
+      // Use type assertion to access transcript_chunk
+      const transcriptChunk = (data as any).transcript_chunk;
+      if (
+        transcriptChunk &&
+        Array.isArray(transcriptChunk.grouped_segments) &&
+        transcriptChunk.grouped_segments.length
+      ) {
+        setTranscriptSegments(
+          transcriptChunk.grouped_segments.map((segment: any) => ({
+            startTime: segment.startTime,
+            endTime: segment.endTime,
+            text: segment.text,
+          }))
         );
-        setTranscriptSegments([
-          {
-            startTime: 0,
-            endTime: 30,
-            text: "Failed to load transcript. Please try again later.",
-          },
-        ]);
-      } finally {
         setTranscriptLoading(false);
+      } else if (attempt < MAX_RETRIES) {
+        setTimeout(
+          () => fetchVideoDetailsWithRetry(videoId, attempt + 1),
+          RETRY_DELAY_MS
+        );
+      } else {
+        setTranscriptSegments([]);
+        setTranscriptLoading(false);
+        setError("Transcript not available. Please try again later.");
       }
-    };
-
-    fetchVideoDetails();
-
-    return () => {
-      if (playerCheckInterval.current) {
-        clearInterval(playerCheckInterval.current);
-        playerCheckInterval.current = null;
-      }
-    };
-  }, [params.id, recentVideos, isPDF, pdfUrl]); // Added pdfUrl dependency
+    } catch (error) {
+      setVideoDetailsLoading(false);
+      setTranscriptLoading(false);
+      setError(
+        error instanceof Error ? error.message : "Failed to fetch video details"
+      );
+    }
+  };
 
   // Updated createTranscriptSegments function to be smarter with short videos
   const createTranscriptSegments = (
@@ -2042,18 +1944,13 @@ export default function VideoDetailsPage() {
       setIsLoadingChunk(true);
       setChunkLoadingError(null);
 
-      const response = await fetch("http://127.0.0.1:5001/video/chunk", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          url: `https://www.youtube.com/watch?v=${params.id}`,
-          startTime: lastChunkEndTime,
-          duration: CHUNK_DURATION,
-          segmentDuration: 30,
-        }),
-      });
+      // Use the Next.js API route as a proxy
+      const query = new URLSearchParams({
+        videoId: params.id?.toString() ?? "",
+        startTime: lastChunkEndTime.toString(),
+        duration: CHUNK_DURATION.toString(),
+      }).toString();
+      const response = await fetch(`/api/youtube/chunk?${query}`);
 
       if (!response.ok) {
         throw new Error(`Failed to load chunk: ${response.statusText}`);
@@ -2114,17 +2011,8 @@ export default function VideoDetailsPage() {
   const fetchTranscript = async () => {
     try {
       debouncedLog("[VideoDetails] Starting to fetch transcript");
-      const response = await fetch("http://127.0.0.1:5001/video", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          url: `https://www.youtube.com/watch?v=${params.id}`,
-          segmentDuration: 30,
-          chunkSize: CHUNK_DURATION,
-        }),
-      });
+      // Use the Next.js API route as a proxy
+      const response = await fetch(`/api/youtube?videoId=${params.id}`);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch transcript: ${response.statusText}`);
@@ -2405,28 +2293,31 @@ export default function VideoDetailsPage() {
                     boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
                   }}
                 >
-                  {loading ? (
+                  {!playerReady && (
                     <Box
                       sx={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        height: "100%",
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",
-                        width: "100%",
-                        height: "100%",
-                        bgcolor: "black",
+                        bgcolor: "rgba(0,0,0,0.5)",
+                        zIndex: 2,
                       }}
                     >
                       <CircularProgress />
                     </Box>
-                  ) : (
-                    <YouTube
-                      videoId={params.id?.toString() ?? ""}
-                      opts={opts}
-                      onReady={handleReady}
-                      onStateChange={handleStateChange}
-                      style={{ width: "100%", height: "100%" }}
-                    />
                   )}
+                  <YouTube
+                    videoId={params.id?.toString() ?? ""}
+                    opts={opts}
+                    onReady={() => setPlayerReady(true)}
+                    onStateChange={handleStateChange}
+                    style={{ width: "100%", height: "100%" }}
+                  />
                 </Box>
 
                 {/* Debug Current Time */}
