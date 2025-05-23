@@ -2,11 +2,7 @@
 import { useState, useEffect } from "react";
 import { useSignInWithEmailAndPassword } from "react-firebase-hooks/auth";
 import { auth } from "@/utils/firebase";
-import {
-  getRedirectResult,
-  GoogleAuthProvider,
-  signInWithPopup,
-} from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Cookies from "js-cookie";
@@ -21,7 +17,7 @@ const SignIn = () => {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
 
-  const [signInWithEmailAndPassword, user, loading, signInError] =
+  const [signInWithEmailAndPassword, , loading, signInError] =
     useSignInWithEmailAndPassword(auth);
 
   const handleSignIn = async () => {
@@ -208,7 +204,7 @@ const SignIn = () => {
         </button>
 
         <div className="mt-4 text-center text-gray-400">
-          Don't have an account?{" "}
+          Don&apos;t have an account?{" "}
           <Link
             href="/sign-up"
             className="text-indigo-400 hover:text-indigo-300"

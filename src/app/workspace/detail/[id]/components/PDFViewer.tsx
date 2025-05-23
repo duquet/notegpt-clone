@@ -10,11 +10,10 @@ import Tooltip from "@mui/material/Tooltip";
 import Button from "@mui/material/Button";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
-import { useTheme, Theme } from "@mui/material/styles";
 import { styled } from "@mui/material/styles";
 import Skeleton from "@mui/material/Skeleton";
 
-import { Document, Page, OnDocumentLoadSuccess } from "react-pdf";
+import { Document, Page } from "react-pdf";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { TextMarkedContent } from "pdfjs-dist/types/src/display/api";
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -57,18 +56,6 @@ interface TextItem {
 interface PageDimensions {
   width: number;
   height: number;
-}
-
-interface PageLoadSuccess {
-  width: number;
-  height: number;
-  pageNumber?: number;
-}
-
-interface ButtonProps {
-  disabled?: boolean;
-  onClick?: () => void;
-  children?: React.ReactNode;
 }
 
 // Styled components
@@ -182,17 +169,14 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
   title: initialTitle = "PDF Document",
   onTitleChange,
 }) => {
-  const theme = useTheme();
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [pageInputValue, setPageInputValue] = useState<string>("1");
   const [scale, setScale] = useState(1.0);
   const [error, setError] = useState<string | null>(null);
-  const [pageHeight, setPageHeight] = useState<number>(0);
   const pageInputRef = useRef<HTMLInputElement>(null);
   const [pdfText, setPdfText] = useState<string>("");
   const [pdfPages, setPdfPages] = useState<string[]>([]);
-  const [extractError, setExtractError] = useState<string | null>(null);
   const [zoomAnchorEl, setZoomAnchorEl] = useState<null | HTMLElement>(null);
   const zoomMenuOpen = Boolean(zoomAnchorEl);
   const [pdfDimensions, setPdfDimensions] = useState<PageDimensions | null>(
@@ -220,19 +204,6 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
   const pdfDocRef = useRef<PDFDocumentProxy | null>(null);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setPageHeight(window.innerHeight * 0.55);
-
-      const handleResize = () => {
-        setPageHeight(window.innerHeight * 0.55);
-      };
-
-      window.addEventListener("resize", handleResize);
-      return () => window.removeEventListener("resize", handleResize);
-    }
-  }, []);
-
-  useEffect(() => {
     if (url) {
       loadStartTime.current = Date.now();
       console.log(`[Performance] PDF loading started for URL: ${url}`);
@@ -244,7 +215,6 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
 
       setIsPdfLoading(true);
       setIsTextExtracting(true);
-      setExtractError(null);
 
       const extractionTimeout = setTimeout(() => {
         const extractStartTime = Date.now();
@@ -266,7 +236,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
           })
           .catch((error) => {
             console.error("[Performance] Text extraction failed:", error);
-            setExtractError("Failed to extract PDF text.");
+            setError("Failed to extract PDF text.");
             setPdfText("");
             setPdfPages([]);
           })
@@ -519,16 +489,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
   };
 
   const zoomOut = () => {
-    setScale((prev) => Math.max(0.5, prev - 0.1));
-  };
-
-  const handleCopy = () => {
-    if (pdfText) {
-      navigator.clipboard.writeText(pdfText);
-      console.log("Copied extracted PDF text");
-    } else {
-      console.log("No PDF text to copy");
-    }
+    setScale((prevScale) => Math.max(0.5, prevScale - 0.1));
   };
 
   const handleDownload = () => {
@@ -549,10 +510,8 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
   };
 
   const handleLanguageSelect = async (languageCode: string) => {
-    setSelectedTranslationLanguage(languageCode);
     handleLanguageMenuClose();
 
-    // Check if the translation request is for a specific page
     const isPageSpecific =
       languageAnchorEl?.getAttribute("data-translate-page") === "true";
     const pageIndexAttr = languageAnchorEl?.getAttribute("data-page-index");
@@ -742,24 +701,6 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
       </Box>
     </PageControls>
   );
-
-  // Fix disabled button tooltips with proper typing
-  const renderTooltipButton = (
-    tooltipTitle: string,
-    button: React.ReactElement<ButtonProps>,
-    disabled: boolean
-  ) => {
-    if (disabled) {
-      return (
-        <Tooltip title={tooltipTitle}>
-          <span style={{ display: "inline-block" }}>
-            {React.cloneElement(button, { disabled })}
-          </span>
-        </Tooltip>
-      );
-    }
-    return <Tooltip title={tooltipTitle}>{button}</Tooltip>;
-  };
 
   return (
     <Box
