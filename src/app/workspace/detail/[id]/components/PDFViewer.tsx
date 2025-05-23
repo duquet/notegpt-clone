@@ -227,7 +227,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
         setPageHeight(window.innerHeight * 0.55);
       };
 
-      window.addEventListener("resize", handleResize);
+      window.addEventListener("resize", handleResize, { passive: true });
       return () => window.removeEventListener("resize", handleResize);
     }
   }, []);

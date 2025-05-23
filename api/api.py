@@ -8,6 +8,7 @@ from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, No
 import time
 from functools import wraps
 import hashlib
+import threading
 
 app = Flask(__name__)
 CORS(app)
@@ -15,6 +16,9 @@ CORS(app)
 # Cache for successful transcript results
 transcript_cache = {}
 CACHE_TTL = 3600  # Cache TTL in seconds (1 hour)
+
+# Helper to cache partial transcripts while full transcript is being fetched
+partial_transcript_cache = {}
 
 
 class QuietLogger:
@@ -70,7 +74,7 @@ def retry_on_failure(max_retries=3, delay=1):
                 except Exception as e:
                     last_error = e
                     print(
-                        f"Attempt {attempt + 1}/{max_retries} failed: {str(e)}")
+                        f"Attempt {attempt + 1}/{max_retries} failed: {str(e)}", flush=True)
                     if attempt < max_retries - 1:
                         time.sleep(delay)
             raise last_error
@@ -92,114 +96,136 @@ def is_cache_valid(cache_entry):
     return time.time() - timestamp < CACHE_TTL
 
 
+# Helper to cache by video ID only
+def get_cache_key_by_video_id(url):
+    video_id = extract_video_id(url)
+    return video_id if video_id else url
+
+
 @retry_on_failure(max_retries=3, delay=1)
-def get_video_transcript(url, start_time=None, duration=None):
+def get_video_transcript(url):
     video_id = extract_video_id(url)
     if not video_id:
-        print(f"Failed to extract video ID from URL: {url}")
+        print(f"Failed to extract video ID from URL: {url}", flush=True)
         return None
 
-    # Check cache first
-    cache_key = get_cache_key(url, start_time, duration)
+    # Check cache by video ID
+    cache_key = get_cache_key_by_video_id(url)
     cache_entry = transcript_cache.get(cache_key)
     if is_cache_valid(cache_entry):
-        print(f"Using cached transcript for video ID: {video_id}")
+        print(
+            f"[Debug][Transcript Coverage] {len(cache_entry[1])} entries, min start: {min([e['start'] for e in cache_entry[1]]):.2f}, max start: {max([e['start'] for e in cache_entry[1]]):.2f}", flush=True)
         return cache_entry[1]
 
     try:
-        print(f"Fetching transcript for video ID: {video_id}")
-        # Try to get the English transcript first, then fallback
+        print(f"Fetching transcript for video ID: {video_id}", flush=True)
         transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
         try:
             transcript = transcript_list.find_transcript(['en'])
-            print("Found English transcript")
+            print("Found English transcript", flush=True)
         except (NoTranscriptFound, TranscriptsDisabled) as e:
             print(
-                f"English transcript not found, trying manually created: {str(e)}")
+                f"English transcript not found, trying manually created: {str(e)}", flush=True)
             try:
                 transcript = transcript_list.find_manually_created_transcript(
                     transcript_list._manually_created_transcripts.keys())
-                print("Found manually created transcript")
+                print("Found manually created transcript", flush=True)
             except Exception as e:
-                print(f"No transcript found: {str(e)}")
+                print(f"No transcript found: {str(e)}", flush=True)
                 return None
-
         entries = transcript.fetch()
-        print(f"Successfully fetched {len(entries)} transcript entries")
-
-        # Convert FetchedTranscriptSnippet objects to dictionaries
+        print(
+            f"Successfully fetched {len(entries)} transcript entries", flush=True)
         entries = [{'text': entry.text, 'start': entry.start,
                     'duration': entry.duration} for entry in entries]
-
-        # If start_time and duration are provided, filter entries
-        if start_time is not None and duration is not None:
-            entries = [entry for entry in entries if start_time <=
-                       entry['start'] < start_time + duration]
-            print(
-                f"Filtered to {len(entries)} entries for time range {start_time}-{start_time + duration}")
-
-        if not entries:
-            print("No transcript entries found after filtering")
-            return None
-
-        # Only cache if we have valid entries
         if entries:
-            transcript_cache[cache_key] = (time.time(), entries)
-            print(f"Cached transcript for video ID: {video_id}")
-
+            starts = [e['start'] for e in entries]
+            print(
+                f"[Debug][Transcript Coverage] {len(entries)} entries, min start: {min(starts):.2f}, max start: {max(starts):.2f}", flush=True)
+        if not entries:
+            print("No transcript entries found after fetching", flush=True)
+            return None
+        # Cache by video ID
+        transcript_cache[cache_key] = (time.time(), entries)
+        print(f"Cached transcript for video ID: {video_id}", flush=True)
         return entries
     except Exception as e:
-        print(f"Transcript error: {str(e)}")
-        print(f"Full error details: {type(e).__name__}: {str(e)}")
+        print(f"Transcript error: {str(e)}", flush=True)
+        print(f"Full error details: {type(e).__name__}: {str(e)}", flush=True)
         return None
 
 
 def get_video_transcript_chunked(url, start_time, duration):
-    entries = get_video_transcript(url)
-    if not entries:
-        return None
+    # Get cache key for this video
+    cache_key = get_cache_key_by_video_id(url)
+    cache_entry = transcript_cache.get(cache_key)
+
+    if not is_cache_valid(cache_entry):
+        # If no cache, get full transcript and cache it
+        entries = get_video_transcript(url)
+        if not entries:
+            return None
+        # Cache the full transcript
+        transcript_cache[cache_key] = (time.time(), entries)
+    else:
+        # Use cached transcript
+        entries = cache_entry[1]
+
+    # Get only the chunks we need
     chunk = [entry for entry in entries if start_time <=
              entry['start'] < start_time + duration]
-    return chunk
+
+    # Group the chunks by interval
+    grouped_segments = group_transcript_by_interval(chunk, 30) if chunk else []
+
+    return {
+        'start_time': start_time,
+        'end_time': start_time + duration,
+        'grouped_segments': grouped_segments
+    }
 
 
 def group_transcript_by_interval(entries, interval=30):
     if not entries or len(entries) == 0:
         return []
-
-    # Pre-allocate the list with estimated size
-    # Assuming ~5 seconds per entry
-    estimated_groups = len(entries) // (interval // 5)
-    grouped = []
-    grouped.reserve(estimated_groups) if hasattr(grouped, 'reserve') else None
-
-    current_group = {
-        'startTime': entries[0]['start'],
-        'endTime': entries[0]['start'] + interval,
-        'text': entries[0]['text']
-    }
-
-    for entry in entries[1:]:
-        if entry['start'] >= current_group['endTime']:
-            # Save current group and start a new one
-            grouped.append(current_group)
-            current_group = {
-                'startTime': entry['start'],
-                'endTime': entry['start'] + interval,
-                'text': entry['text']
-            }
-        else:
-            # Add to current group
-            current_group['text'] += ' ' + entry['text']
-
-    # Add the last group
-    grouped.append(current_group)
-    return grouped
+    entries = sorted(entries, key=lambda e: e['start'])
+    groups = []
+    n = len(entries)
+    i = 0
+    while i < n:
+        group_start = entries[i]['start']
+        group_text = [entries[i]['text']]
+        j = i + 1
+        # Add snippets to the group until the next snippet is at least 'interval' seconds after group_start
+        while j < n and entries[j]['start'] < group_start + interval:
+            group_text.append(entries[j]['text'])
+            j += 1
+        group_end = entries[j-1]['start'] + entries[j-1]['duration']
+        groups.append({
+            'startTime': group_start,
+            'endTime': group_end,
+            'text': ' '.join(group_text)
+        })
+        i = j
+    return groups
 
 
 def make_response(success, data=None, error=None, status=200):
     resp = {'success': success, 'data': data, 'error': error}
     return jsonify(resp), status
+
+
+# Background function to fetch and cache the full transcript
+def fetch_and_cache_full_transcript(url):
+    entries = get_video_transcript(url)
+    if entries:
+        cache_key = get_cache_key_by_video_id(url)
+        transcript_cache[cache_key] = (time.time(), entries)
+        print(
+            f"[Background] Full transcript cached for video: {url}", flush=True)
+    else:
+        print(
+            f"[Background] Failed to fetch full transcript for video: {url}", flush=True)
 
 
 @app.route('/video', methods=['POST'])
@@ -221,89 +247,129 @@ def get_video():
             if not video_info:
                 return make_response(False, error='Failed to get video info', status=400)
         except Exception as e:
-            print(f"Error getting video info: {str(e)}")
+            print(f"Error getting video info: {str(e)}", flush=True)
             return make_response(False, error=f'Video info error: {str(e)}', status=500)
 
+        # Only fetch the first 5 minutes (300s) of transcript for initial response
         transcript = None
         last_error = None
         for attempt in range(3):
             try:
-                transcript = get_video_transcript(url, 0, chunk_size)
+                transcript = get_video_transcript(url)
                 if transcript:
                     break
             except Exception as e:
                 last_error = e
-                print(f"Attempt {attempt + 1} failed: {str(e)}")
-                time.sleep(1)  # Add delay between retries
+                print(f"Attempt {attempt + 1} failed: {str(e)}", flush=True)
+                time.sleep(1)
 
         if not transcript:
             error_msg = f'No transcript available: {str(last_error)}' if last_error else 'No transcript available'
-            print(f"Failed to get transcript after 3 attempts: {error_msg}")
+            print(
+                f"Failed to get transcript after 3 attempts: {error_msg}", flush=True)
             return make_response(False, error=error_msg, data={'video_info': video_info}, status=404)
 
-        try:
-            grouped_segments = group_transcript_by_interval(
-                transcript, interval)
-            if not grouped_segments:
-                return make_response(False, error='Failed to process transcript: No segments generated', data={'video_info': video_info}, status=500)
-        except Exception as e:
-            print(f"Error processing transcript: {str(e)}")
-            return make_response(False, error=f'Failed to process transcript: {str(e)}', data={'video_info': video_info}, status=500)
+        # Only return first 5 minutes of transcript initially
+        initial_chunk = [entry for entry in transcript if entry['start'] < 300]
+        grouped_segments = group_transcript_by_interval(
+            initial_chunk, interval)
 
-        response_data = {
-            'title': video_info['title'],
-            'uploaded_by': video_info['uploaded_by'],
-            'uploaded_at': video_info['uploaded_at'],
-            'duration': video_info['duration'],
+        # Cache the partial transcript
+        cache_key = get_cache_key_by_video_id(url)
+        partial_transcript_cache[cache_key] = (time.time(), initial_chunk)
+
+        # Start background thread to fetch and cache the full transcript
+        def background_fetch():
+            fetch_and_cache_full_transcript(url)
+        threading.Thread(target=background_fetch, daemon=True).start()
+
+        return make_response(True, data={
+            'title': video_info.get('title', ''),
+            'uploaded_by': video_info.get('uploader', ''),
+            'uploaded_at': video_info.get('upload_date', ''),
+            'duration': video_info.get('duration', 0),
             'transcript_chunk': {
-                'grouped_segments': grouped_segments,
                 'start_time': 0,
-                'end_time': min(chunk_size, video_info['duration']),
-                'segment_duration': interval,
-                'total_duration': video_info['duration'],
-                'chunk_size': chunk_size
+                'end_time': 300,
+                'grouped_segments': grouped_segments
             }
-        }
-        return make_response(True, data=response_data)
+        })
+
     except Exception as e:
-        print(f"Unexpected error in /video endpoint: {str(e)}")
-        return make_response(False, error=f'Internal server error: {str(e)}', status=500)
+        print(f"Error in /video endpoint: {str(e)}", flush=True)
+        return make_response(False, error=str(e), status=500)
 
 
 @app.route('/video/chunk', methods=['POST'])
 def get_video_chunk():
+    start_time = time.time()
     try:
         data = request.get_json()
         if not data or 'url' not in data or 'startTime' not in data or 'duration' not in data:
             return make_response(False, error='Missing parameters', status=400)
 
         url = data['url']
-        start_time = int(data['startTime'])
+        chunk_start_time = int(data['startTime'])
         duration = int(data['duration'])
         interval = int(data.get('segmentDuration', 30))
+
+        print(
+            f"[Backend] Processing chunk request - start_time: {chunk_start_time}, duration: {duration}", flush=True)
 
         if not isinstance(url, str) or not url.startswith('http'):
             return make_response(False, error='Invalid video URL', status=400)
 
-        video_info = get_video_info(url)
-        if not video_info:
-            return make_response(False, error='Failed to get video info', status=400)
+        # Get cache key for this video
+        cache_key = get_cache_key_by_video_id(url)
+        cache_entry = transcript_cache.get(cache_key)
+        partial_entry = partial_transcript_cache.get(cache_key)
 
-        chunk = get_video_transcript(url, start_time, duration)
-        if chunk is None:
-            return make_response(False, error='Failed to get transcript chunk', status=400)
+        # Serve from full cache if available
+        if is_cache_valid(cache_entry):
+            full_transcript = cache_entry[1]
+            chunk = [entry for entry in full_transcript if chunk_start_time <=
+                     entry['start'] < chunk_start_time + duration]
+        # Otherwise, serve from partial cache if it covers the requested chunk
+        elif is_cache_valid(partial_entry):
+            partial_transcript = partial_entry[1]
+            chunk = [entry for entry in partial_transcript if chunk_start_time <=
+                     entry['start'] < chunk_start_time + duration]
+            # If the requested chunk is not yet available, return loading state
+            if not chunk:
+                print(
+                    f"[Backend] Requested chunk not yet available in partial transcript", flush=True)
+                return make_response(False, error='Chunk not yet available. Please try again shortly.', status=202)
+        else:
+            print(
+                f"[Backend] No cached transcript for video: {url}", flush=True)
+            return make_response(False, error='No transcript available', status=404)
 
+        if not chunk:
+            print(
+                f"[Backend] No transcript entries found for time range {chunk_start_time}-{chunk_start_time + duration}", flush=True)
+            return make_response(False, error='No transcript entries found for this time range', status=404)
+
+        # Group the chunks by interval
         grouped_segments = group_transcript_by_interval(chunk, interval)
-        response_data = {
+
+        print(
+            f"[Backend] Created {len(grouped_segments)} grouped segments for chunk {chunk_start_time}-{chunk_start_time + duration}", flush=True)
+
+        response_time = time.time() - start_time
+        print(
+            f"[Backend] Chunk processing time: {response_time:.2f}s", flush=True)
+
+        return make_response(True, data={
+            'start_time': chunk_start_time,
+            'end_time': chunk_start_time + duration,
             'grouped_segments': grouped_segments,
-            'start_time': start_time,
-            'end_time': min(start_time + duration, video_info['duration']),
-            'segment_duration': interval,
-            'total_duration': video_info['duration']
-        }
-        return make_response(True, data=response_data)
+            'processing_time': response_time
+        })
+
     except Exception as e:
-        return make_response(False, error=f'Error in /video/chunk endpoint: {str(e)}', status=500)
+        print(
+            f"[Backend] Error processing chunk request: {str(e)}", flush=True)
+        return make_response(False, error=str(e), status=500)
 
 
 if __name__ == '__main__':

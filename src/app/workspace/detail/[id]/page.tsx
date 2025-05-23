@@ -505,6 +505,20 @@ const debouncedLog = debounce((message: string, data?: any) => {
   console.log(message, data);
 }, 1000);
 
+// Add this near the top, after imports
+const TranscriptSkeleton = () => (
+  <Box sx={{ mt: 2 }}>
+    {Array.from({ length: 8 }).map((_, i) => (
+      <Skeleton
+        key={i}
+        variant="text"
+        height={28}
+        sx={{ mb: 1, width: "90%" }}
+      />
+    ))}
+  </Box>
+);
+
 export default function VideoDetailsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -516,69 +530,39 @@ export default function VideoDetailsPage() {
 
   // Add performance tracking
   const pageLoadStartTime = useRef<number>(Date.now());
+  const startTime = useRef(performance.now());
+
+  useEffect(() => {
+    const measurePerformance = () => {
+      const currentTime = performance.now();
+      const loadTime = currentTime - startTime.current;
+      console.log(
+        `[Performance] Total component load time: ${loadTime.toFixed(2)}ms`
+      );
+    };
+
+    // Measure initial load
+    const initialLoadTimeout = setTimeout(() => {
+      const initialLoadTime = performance.now() - startTime.current;
+      console.log(
+        `[Performance] Initial component load time: ${initialLoadTime.toFixed(
+          2
+        )}ms`
+      );
+    }, 100);
+
+    // Measure total load
+    window.addEventListener("load", measurePerformance);
+
+    return () => {
+      clearTimeout(initialLoadTimeout);
+      window.removeEventListener("load", measurePerformance);
+    };
+  }, []);
 
   // Log initial render time
   useEffect(() => {
     const initialRenderTime = Date.now() - pageLoadStartTime.current;
-    debouncedLog(
-      `[Performance] Page initial render time: ${initialRenderTime}ms`
-    );
-
-    // Start performance monitoring
-    const perfObserver = new PerformanceObserver((list) => {
-      list.getEntries().forEach((entry) => {
-        if (entry.entryType === "largest-contentful-paint") {
-          debouncedLog(
-            `[Performance] Largest Contentful Paint: ${entry.startTime}ms`
-          );
-        }
-        if (entry.entryType === "layout-shift") {
-          const layoutShift = entry as LayoutShiftEntry;
-          // Only log significant layout shifts (greater than 0.1)
-          if (layoutShift.value > 0.1) {
-            debouncedLog(
-              `[Performance] Significant Layout Shift: ${layoutShift.value}`
-            );
-          }
-        }
-        if (entry.entryType === "first-input") {
-          const firstInput = entry as FirstInputEntry;
-          debouncedLog(
-            `[Performance] First Input Delay: ${
-              firstInput.processingStart - firstInput.startTime
-            }ms`
-          );
-        }
-      });
-    });
-
-    // Observe performance metrics
-    perfObserver.observe({
-      entryTypes: ["largest-contentful-paint", "layout-shift", "first-input"],
-    });
-
-    // Log network conditions if available
-    if ("connection" in navigator) {
-      const connection = (navigator as any).connection as NetworkInformation;
-      debouncedLog("[Performance] Network conditions:", {
-        effectiveType: connection?.effectiveType,
-        downlink: connection?.downlink,
-        rtt: connection?.rtt,
-      });
-    }
-
-    return () => {
-      perfObserver.disconnect();
-      debouncedLog(
-        `[Performance] Total page lifetime: ${
-          Date.now() - pageLoadStartTime.current
-        }ms`
-      );
-    };
-  }, []);
-
-  // Log when PDF/Video content starts and finishes loading
-  useEffect(() => {
     if (isPDF) {
       debouncedLog("[Performance] Starting PDF content load");
     } else {
@@ -692,6 +676,12 @@ export default function VideoDetailsPage() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Add state for all transcript segments
+  const [allTranscriptSegments, setAllTranscriptSegments] = useState<
+    TranscriptSegment[]
+  >([]);
+  const [allChunksLoaded, setAllChunksLoaded] = useState(false);
+
   // Add constant for chunk duration (5 minutes)
   const CHUNK_DURATION = 300;
 
@@ -717,7 +707,6 @@ export default function VideoDetailsPage() {
   }, [params.id]);
 
   const fetchVideoDetailsWithRetry = async (videoId: string, attempt = 1) => {
-    setTranscriptLoading(true);
     try {
       const data = await getYouTubeVideoDetails(videoId);
       if (!data) {
@@ -743,6 +732,12 @@ export default function VideoDetailsPage() {
             endTime: segment.endTime,
             text: segment.text,
           }))
+        );
+        // Add performance log for transcript availability (rounded)
+        console.log(
+          "[Performance] Transcript segments available:",
+          Math.round(performance.now()),
+          "ms"
         );
         setTranscriptLoading(false);
       } else if (attempt < MAX_RETRIES) {
@@ -958,6 +953,7 @@ export default function VideoDetailsPage() {
 
   // Handle YouTube player ready event
   const handleReady = (event: YouTubeEvent) => {
+    setPlayerReady(true); // Fix: hide spinner when player is ready
     debouncedLog(
       `[Performance] YouTube player ready: ${
         Date.now() - pageLoadStartTime.current
@@ -1056,18 +1052,8 @@ export default function VideoDetailsPage() {
 
   // Handle click on transcript segment
   const handleSegmentClick = (startTime: number) => {
-    // Use YouTube API to seek
     if (playerRef.current) {
-      playerRef.current.seekTo(startTime, true);
-
-      // Update highlighted segment immediately
-      const segmentIndex = transcriptSegments.findIndex(
-        (segment) => segment.startTime === startTime
-      );
-      if (segmentIndex !== -1) {
-        setCurrentSegmentIndex(segmentIndex);
-        setCurrentVideoTime(startTime);
-      }
+      playerRef.current.seekTo(startTime, "seconds");
     }
   };
 
@@ -2009,6 +1995,9 @@ export default function VideoDetailsPage() {
 
   // Modify fetchTranscript to handle chunked data
   const fetchTranscript = async () => {
+    const transcriptStartTime = performance.now();
+    console.log("[Transcript] Starting transcript fetch");
+
     try {
       debouncedLog("[VideoDetails] Starting to fetch transcript");
       // Use the Next.js API route as a proxy
@@ -2019,6 +2008,11 @@ export default function VideoDetailsPage() {
       }
 
       const data = await response.json();
+      const initialApiTime = performance.now() - transcriptStartTime;
+      console.log(
+        `[Transcript] Initial API response time: ${initialApiTime.toFixed(2)}ms`
+      );
+
       debouncedLog("[VideoDetails] Received transcript data:", {
         hasTranscript: !!data.transcript_chunk,
         transcriptLength: data.transcript_chunk?.grouped_segments?.length || 0,
@@ -2032,24 +2026,68 @@ export default function VideoDetailsPage() {
       const totalChunks = Math.ceil(data.duration / CHUNK_DURATION);
       setTotalChunks(totalChunks);
 
-      // Set initial chunk
+      // Set initial chunk (first 5 minutes only)
       const initialChunk: TranscriptChunk = {
-        startTime: data.transcript_chunk.start_time,
-        endTime: data.transcript_chunk.end_time,
-        segments: data.transcript_chunk.grouped_segments.map(
-          (segment: any) => ({
+        startTime: 0,
+        endTime: CHUNK_DURATION,
+        segments: data.transcript_chunk.grouped_segments
+          .filter((segment: any) => segment.startTime < CHUNK_DURATION)
+          .map((segment: any) => ({
             startTime: segment.startTime,
             endTime: segment.endTime,
             text: segment.text,
-          })
-        ),
+          })),
       };
 
+      // Set initial state
       setTranscriptChunks([initialChunk]);
       setTranscriptSegments(initialChunk.segments);
       setCurrentChunkIndex(0);
-      setLastChunkEndTime(data.transcript_chunk.end_time);
+      setLastChunkEndTime(initialChunk.endTime);
       setIsInitialLoad(false);
+
+      // Start loading next chunks in parallel
+      const loadNextChunks = async () => {
+        const chunkPromises = [];
+        for (let i = 1; i < Math.min(3, totalChunks); i++) {
+          const startTime = i * CHUNK_DURATION;
+          chunkPromises.push(
+            fetch(
+              `/api/youtube/chunk?videoId=${params.id}&startTime=${startTime}&duration=${CHUNK_DURATION}`
+            )
+              .then((res) => res.json())
+              .then((data) => ({
+                startTime: data.data.start_time,
+                endTime: data.data.end_time,
+                segments: data.data.grouped_segments.map((segment: any) => ({
+                  startTime: segment.startTime,
+                  endTime: segment.endTime,
+                  text: segment.text,
+                })),
+              }))
+              .catch((err) => {
+                console.error(`Error loading chunk ${i}:`, err);
+                return null;
+              })
+          );
+        }
+
+        const chunks = await Promise.all(chunkPromises);
+        const validChunks = chunks.filter((chunk) => chunk !== null);
+
+        if (validChunks.length > 0) {
+          setTranscriptChunks((prev) => [...prev, ...validChunks]);
+          setTranscriptSegments((prev) => [
+            ...prev,
+            ...validChunks.flatMap((chunk) => chunk.segments),
+          ]);
+          setCurrentChunkIndex(validChunks.length);
+          setLastChunkEndTime(validChunks[validChunks.length - 1].endTime);
+        }
+      };
+
+      // Start loading next chunks after initial render
+      setTimeout(loadNextChunks, 100);
     } catch (error) {
       console.error("[VideoDetails] Transcript API error:", error);
       setError(
@@ -2082,11 +2120,10 @@ export default function VideoDetailsPage() {
 
   // Modify the transcript rendering section
   const renderTranscript = () => {
-    if (!transcriptSegments.length) return null;
-
+    if (!transcriptToRender.length) return null;
     return (
       <Box sx={{ mt: 2 }}>
-        {transcriptSegments.map((segment, index) => (
+        {transcriptToRender.map((segment, index) => (
           <Box
             key={index}
             sx={{
@@ -2103,7 +2140,7 @@ export default function VideoDetailsPage() {
             }}
             onClick={() => handleSegmentClick(segment.startTime)}
           >
-            <Typography variant="body2">
+            <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
               {formatTime(segment.startTime)} - {segment.text}
             </Typography>
           </Box>
@@ -2112,7 +2149,88 @@ export default function VideoDetailsPage() {
     );
   };
 
-  // Replace the existing transcript section with the new render function
+  // After initial chunk loads, auto-fetch all chunks progressively
+  useEffect(() => {
+    if (!videoDuration || transcriptSegments.length === 0) return;
+    console.log(
+      "videoDuration:",
+      videoDuration,
+      "transcriptSegments:",
+      transcriptSegments.length
+    );
+    const totalChunks = Math.ceil(videoDuration / CHUNK_DURATION);
+    console.log("totalChunks:", totalChunks);
+    if (totalChunks <= 1) {
+      setAllTranscriptSegments(transcriptSegments);
+      setAllChunksLoaded(true);
+      return;
+    }
+    let isCancelled = false;
+    setAllTranscriptSegments([...transcriptSegments]);
+    setAllChunksLoaded(false);
+    const fetchAllChunks = async () => {
+      for (let i = 1; i < totalChunks; i++) {
+        if (isCancelled) return;
+        const startTime = i * CHUNK_DURATION;
+        try {
+          console.log(`Fetching chunk ${i + 1} (startTime=${startTime})`);
+          const response = await fetch(
+            `/api/youtube/chunk?videoId=${params.id}&startTime=${startTime}&duration=${CHUNK_DURATION}`
+          );
+          if (!response.ok) {
+            console.log(`Chunk ${i + 1} fetch failed:`, response.status);
+            break;
+          }
+          const data = await response.json();
+          if (
+            !data?.data?.grouped_segments ||
+            data.data.grouped_segments.length === 0
+          ) {
+            console.log(`Chunk ${i + 1} is empty, stopping.`);
+            break;
+          }
+          setAllTranscriptSegments((prev) => [
+            ...prev,
+            ...data.data.grouped_segments.map((segment: any) => ({
+              startTime: segment.startTime,
+              endTime: segment.endTime,
+              text: segment.text,
+            })),
+          ]);
+        } catch (e) {
+          console.log(`Chunk ${i + 1} fetch error:`, e);
+          break;
+        }
+      }
+      if (!isCancelled) setAllChunksLoaded(true);
+    };
+    fetchAllChunks();
+    return () => {
+      isCancelled = true;
+    };
+  }, [videoDuration, transcriptSegments, params.id]);
+
+  // Always use allTranscriptSegments for rendering
+  const transcriptToRender = allTranscriptSegments;
+
+  // When all chunks are loaded, update translatedSegments for summary
+  useEffect(() => {
+    if (allChunksLoaded && allTranscriptSegments.length > 0) {
+      setTranslatedSegments(allTranscriptSegments);
+    }
+  }, [allChunksLoaded, allTranscriptSegments]);
+
+  // Add after transcriptSegments state declaration
+  useEffect(() => {
+    if (transcriptSegments.length > 0) {
+      console.log(
+        "[Performance] Transcript component rendered:",
+        Math.round(performance.now()),
+        "ms"
+      );
+    }
+  }, [transcriptSegments]);
+
   return (
     <>
       <Box sx={{ p: 2, fontFamily: "Inter, sans-serif" }}>
@@ -2314,7 +2432,7 @@ export default function VideoDetailsPage() {
                   <YouTube
                     videoId={params.id?.toString() ?? ""}
                     opts={opts}
-                    onReady={() => setPlayerReady(true)}
+                    onReady={handleReady}
                     onStateChange={handleStateChange}
                     style={{ width: "100%", height: "100%" }}
                   />
@@ -2580,13 +2698,9 @@ export default function VideoDetailsPage() {
                     }}
                   >
                     {transcriptLoading ? (
-                      <Box
-                        sx={{ display: "flex", justifyContent: "center", p: 4 }}
-                      >
-                        <CircularProgress size={24} />
-                      </Box>
+                      <TranscriptSkeleton />
                     ) : (
-                      <>{renderTranscript()}</>
+                      renderTranscript()
                     )}
                   </Box>
                 </TabPanel>

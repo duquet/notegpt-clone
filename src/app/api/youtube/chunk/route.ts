@@ -6,7 +6,14 @@ export async function GET(request: Request) {
   const startTime = searchParams.get("startTime");
   const duration = searchParams.get("duration");
 
+  console.log("[YouTube API Chunk] Request params:", {
+    videoId,
+    startTime,
+    duration,
+  });
+
   if (!videoId || !startTime || !duration) {
+    console.error("[YouTube API Chunk] Missing parameters");
     return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
   }
 
@@ -23,7 +30,22 @@ export async function GET(request: Request) {
     });
 
     const data = await pythonResponse.json();
-    return NextResponse.json(data, { status: pythonResponse.status });
+
+    if (!pythonResponse.ok) {
+      console.error("[YouTube API Chunk] Python API error:", data.error);
+      return NextResponse.json(
+        { error: data.error || "Failed to fetch transcript chunk" },
+        { status: pythonResponse.status }
+      );
+    }
+
+    console.log("[YouTube API Chunk] Successfully fetched chunk:", {
+      startTime: data.data.start_time,
+      endTime: data.data.end_time,
+      segmentCount: data.data.grouped_segments.length,
+    });
+
+    return NextResponse.json(data);
   } catch (error) {
     console.error("[YouTube API Chunk] Error accessing Python API:", error);
     return NextResponse.json(
