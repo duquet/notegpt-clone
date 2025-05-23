@@ -6,14 +6,15 @@ import LanguageIcon from "@mui/icons-material/Language";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import { useAppContext } from "@/contexts";
 import { useTranslation } from "@/utils";
+import { TranslationKey } from "@/utils/translations";
 
 // Language configuration
 const languages = [
-  { code: "en", translationKey: "languageEnglish" },
-  { code: "es", translationKey: "languageSpanish" },
-  { code: "fr", translationKey: "languageFrench" },
-  { code: "de", translationKey: "languageGerman" },
-  { code: "zh", translationKey: "languageChinese" },
+  { code: "en", translationKey: "languageEnglish" as TranslationKey },
+  { code: "es", translationKey: "languageSpanish" as TranslationKey },
+  { code: "fr", translationKey: "languageFrench" as TranslationKey },
+  { code: "de", translationKey: "languageGerman" as TranslationKey },
+  { code: "zh", translationKey: "languageChinese" as TranslationKey },
 ];
 
 export function LanguageSwitch() {
@@ -35,7 +36,8 @@ export function LanguageSwitch() {
   };
 
   // Get current language name using translation
-  const currentLanguageInfo = languages.find((lang) => lang.code === language) || languages[0];
+  const currentLanguageInfo =
+    languages.find((lang) => lang.code === language) || languages[0];
   const currentLanguageName = t(currentLanguageInfo.translationKey);
 
   return (
