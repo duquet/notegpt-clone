@@ -17,10 +17,16 @@ const SignIn = () => {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
 
+  // Use non-null assertion since we know auth will be initialized on client side
   const [signInWithEmailAndPassword, , loading, signInError] =
-    useSignInWithEmailAndPassword(auth);
+    useSignInWithEmailAndPassword(auth!);
 
   const handleSignIn = async () => {
+    if (!auth) {
+      setError("Authentication service is not available");
+      return;
+    }
+
     setError("");
     setSuccess("");
 
@@ -61,6 +67,11 @@ const SignIn = () => {
   };
 
   const handleGoogleSignIn = async () => {
+    if (!auth) {
+      setError("Authentication service is not available");
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError("");
@@ -95,6 +106,8 @@ const SignIn = () => {
   };
 
   useEffect(() => {
+    if (!auth) return;
+
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
         setIsLoading(false);
