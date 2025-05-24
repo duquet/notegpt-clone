@@ -28,6 +28,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    if (!auth) {
+      setLoading(false);
+      return;
+    }
+
     // Use onIdTokenChanged for better session sync
     const unsubscribe = onIdTokenChanged(auth, async (user) => {
       setUser(user);
@@ -48,6 +53,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    if (!auth) {
+      throw new Error("Authentication service is not available");
+    }
+
     try {
       setError(null);
       await signInWithEmailAndPassword(auth, email, password);
@@ -58,6 +67,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signUp = async (email: string, password: string) => {
+    if (!auth) {
+      throw new Error("Authentication service is not available");
+    }
+
     try {
       setError(null);
       await createUserWithEmailAndPassword(auth, email, password);
@@ -68,6 +81,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
+    if (!auth) {
+      throw new Error("Authentication service is not available");
+    }
+
     try {
       setError(null);
       const provider = new GoogleAuthProvider();
@@ -79,6 +96,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    if (!auth) {
+      throw new Error("Authentication service is not available");
+    }
+
     try {
       await firebaseSignOut(auth);
       localStorage.removeItem("token");
@@ -111,4 +132,4 @@ export const useAuth = () => {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
-}; 
+};
