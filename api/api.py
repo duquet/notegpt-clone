@@ -1,15 +1,28 @@
+import os
+import json
+import openai
+from functools import wraps
+import time
+from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
+import re
+import yt_dlp
+from flask_cors import CORS
+from flask import Flask, request, jsonify
+from dotenv import load_dotenv
+load_dotenv()
+
 # The following code is copied from backend/app.py to unify backend logic in api/api.py
 
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import yt_dlp
-import re
-from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
-import time
-from functools import wraps
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*",
+     "methods": ["GET", "POST", "OPTIONS"]}})
+
+# Load summary prompts from backend copy
+with open('summaryPrompts.json', 'r') as f:
+    SUMMARY_PROMPTS = json.load(f)
+
+openai.api_key = os.environ.get("OPENAI_API_KEY")
 
 
 def extract_video_id(url):
@@ -310,6 +323,68 @@ def get_video_chunk():
     except Exception as e:
         print(f"Error in /video/chunk endpoint: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/summarize', methods=['POST'])
+def summarize():
+    print("[DEBUG] /api/summarize endpoint called")
+    data = request.get_json()
+    print(f"[DEBUG] Incoming data: {data}")
+    transcript = data.get('transcript')
+    options = data.get('options', {})
+
+    # Determine template type and customizations
+    template_type = "default"
+    custom_prompt = None
+    custom_title = None
+    system_prompt = None
+
+    if isinstance(options, dict):
+        template_type = options.get("templateType", "default")
+        custom_prompt = options.get("customPrompt")
+        custom_title = options.get("customTitle")
+        system_prompt = options.get("systemPrompt")
+    elif isinstance(options, str):
+        template_type = options
+
+    print(f"[DEBUG] Using template_type: {template_type}")
+
+    # Get prompt config from summaryPrompts.json
+    prompt_config = SUMMARY_PROMPTS.get(
+        template_type, SUMMARY_PROMPTS["default"])
+    system_prompt = system_prompt or prompt_config.get("systemPrompt", "")
+    user_prompt = prompt_config.get("userPrompt", "")
+
+    # If a custom prompt is provided, use it
+    if custom_prompt:
+        user_prompt = custom_prompt
+
+    # Format the user prompt with the transcript
+    user_prompt = user_prompt.replace("{transcript}", transcript)
+
+    # Compose OpenAI messages
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt}
+    ]
+
+    print(
+        f"[DEBUG] Calling OpenAI with system prompt: {system_prompt[:100]}...")
+    print(f"[DEBUG] User prompt (first 100 chars): {user_prompt[:100]}...")
+
+    try:
+        response = openai.chat.completions.create(
+            model="gpt-3.5-turbo",  # or "gpt-4" if you have access
+            messages=messages,
+            max_tokens=1500,
+            temperature=0.7,
+        )
+        summary = response.choices[0].message.content.strip()
+        print("[DEBUG] OpenAI call successful, returning summary.")
+        return jsonify({"summary": summary})
+    except Exception as e:
+        print(f"[ERROR] OpenAI call failed: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == '__main__':

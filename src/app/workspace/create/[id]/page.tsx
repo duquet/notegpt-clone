@@ -45,10 +45,13 @@ export default function VideoDetailPage() {
   const params = useParams();
   const videoId = params.id as string;
   const [loading, setLoading] = useState(true);
+  const [summaryLoading, setSummaryLoading] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [transcript, setTranscript] = useState<string>("");
+  const [summary, setSummary] = useState<string>("");
   const [noteContent, setNoteContent] = useState("");
-  const { addVideoToHistory, saveNote, savedNotes, recentVideos } = useAppContext();
+  const { addVideoToHistory, saveNote, savedNotes, recentVideos } =
+    useAppContext();
   const [noteSaved, setNoteSaved] = useState(false);
   const [videoTitle, setVideoTitle] = useState<string>("");
   const [channelTitle, setChannelTitle] = useState<string>("");
@@ -70,7 +73,7 @@ export default function VideoDetailPage() {
   useEffect(() => {
     // Prevent infinite API calls if we already have an API error
     if (apiError) return;
-    
+
     const fetchVideoData = async () => {
       try {
         // Fetch actual video title and transcript from API
@@ -79,7 +82,7 @@ export default function VideoDetailPage() {
         let videoTranscript = "";
 
         // First check if we already have the video in recent videos
-        const savedVideo = recentVideos.find(video => video.id === videoId);
+        const savedVideo = recentVideos.find((video) => video.id === videoId);
         if (savedVideo) {
           title = savedVideo.title;
           // Don't override the saved title with API data
@@ -108,7 +111,9 @@ export default function VideoDetailPage() {
         // Update state with fetched data
         setVideoTitle(title);
         setChannelTitle(channel);
-        setTranscript(videoTranscript || "No transcript available for this video.");
+        setTranscript(
+          videoTranscript || "No transcript available for this video."
+        );
 
         // Only add to history if it wasn't found earlier
         if (!savedVideo) {
@@ -120,7 +125,7 @@ export default function VideoDetailPage() {
           };
           addVideoToHistory(videoSummary);
         }
-        
+
         setLoading(false);
       } catch (error) {
         console.error("Error fetching video data:", error);
@@ -131,6 +136,50 @@ export default function VideoDetailPage() {
 
     fetchVideoData();
   }, [videoId, addVideoToHistory, apiError, recentVideos]);
+
+  // Generate summary when transcript is loaded
+  useEffect(() => {
+    const generateSummary = async () => {
+      if (
+        !transcript ||
+        transcript === "No transcript available for this video."
+      ) {
+        return;
+      }
+
+      setSummaryLoading(true);
+      try {
+        const response = await fetch("/api/summarize", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            transcript,
+            options: {
+              templateType: "default",
+            },
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to generate summary");
+        }
+
+        const data = await response.json();
+        setSummary(data.summary);
+      } catch (error) {
+        console.error("Error generating summary:", error);
+        setSummary(
+          "An error occurred while generating the summary. Please try again."
+        );
+      } finally {
+        setSummaryLoading(false);
+      }
+    };
+
+    generateSummary();
+  }, [transcript]);
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
@@ -242,32 +291,17 @@ export default function VideoDetailPage() {
                     Video ID: {videoId}
                   </Typography>
 
-                  <Typography variant="h6" gutterBottom>
-                    Key Points
-                  </Typography>
-                  <Box component="ul" sx={{ mt: 2 }}>
-                    <Typography component="li" sx={{ mb: 1 }}>
-                      Introduction to AI and its impact on various industries
-                    </Typography>
-                    <Typography component="li" sx={{ mb: 1 }}>
-                      Ethical considerations surrounding new technologies
-                    </Typography>
-                    <Typography component="li" sx={{ mb: 1 }}>
-                      Real-world applications of emerging technologies
-                    </Typography>
-                  </Box>
-
-                  <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
-                    Summary
-                  </Typography>
-                  <Typography paragraph>
-                    The video discusses the impact of artificial intelligence on
-                    modern society, covering its transformative effects across
-                    various sectors like healthcare and transportation. It
-                    addresses ethical considerations that come with
-                    technological advancement and explores real-world
-                    applications that are changing how we live and work.
-                  </Typography>
+                  {summaryLoading ? (
+                    <Box
+                      sx={{ display: "flex", justifyContent: "center", py: 4 }}
+                    >
+                      <CircularProgress />
+                    </Box>
+                  ) : (
+                    <Box sx={{ whiteSpace: "pre-line" }}>
+                      {summary || "No summary available yet."}
+                    </Box>
+                  )}
                 </Box>
               </TabPanel>
 

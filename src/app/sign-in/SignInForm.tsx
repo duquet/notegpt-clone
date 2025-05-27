@@ -69,6 +69,7 @@ export default function SignInForm() {
 
   const handleGoogleSignIn = async () => {
     if (!auth) {
+      console.error("Auth is not initialized");
       setError("Authentication service is not available");
       return;
     }
@@ -82,14 +83,18 @@ export default function SignInForm() {
         prompt: "select_account",
       });
 
+      console.log("Starting Google Sign-In...");
       const result = await signInWithPopup(auth, provider);
+      console.log("Google Sign-In result:", result);
 
       if (result.user) {
         setSuccess("Successfully signed in with Google! Redirecting...");
         const token = await result.user.getIdToken();
+        console.log("Got ID token");
 
         // Set the token in cookies
         document.cookie = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}`;
+        console.log("Set token cookie");
 
         setTimeout(() => {
           router.push(callbackUrl);
@@ -97,6 +102,11 @@ export default function SignInForm() {
       }
     } catch (e) {
       console.error("Google sign in error:", e);
+      if (e instanceof Error) {
+        console.error("Error code:", (e as any).code);
+        console.error("Error message:", e.message);
+        console.error("Error stack:", e.stack);
+      }
       setError(
         e instanceof Error
           ? e.message
