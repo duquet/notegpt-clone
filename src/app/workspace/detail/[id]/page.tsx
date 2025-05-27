@@ -772,7 +772,9 @@ export default function VideoDetailsPage() {
 
       try {
         console.log("[VideoDetails] Fetching transcript from API");
-        const response = await fetch("http://127.0.0.1:5001/video", {
+        const apiUrl =
+          process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+        const response = await fetch(`${apiUrl}/video`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -2034,7 +2036,8 @@ export default function VideoDetailsPage() {
       setIsLoadingChunk(true);
       setChunkLoadingError(null);
 
-      const response = await fetch("http://127.0.0.1:5001/video/chunk", {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+      const response = await fetch(`${apiUrl}/video/chunk`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -2106,7 +2109,8 @@ export default function VideoDetailsPage() {
   const fetchTranscript = async () => {
     try {
       console.log("[VideoDetails] Starting to fetch transcript");
-      const response = await fetch("http://127.0.0.1:5001/video", {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+      const response = await fetch(`${apiUrl}/video`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

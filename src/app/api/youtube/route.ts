@@ -6,59 +6,36 @@ export async function GET(request: Request) {
 
   if (!videoId) {
     return NextResponse.json(
-      { error: "Missing videoId parameter" },
+      { error: "Video ID is required" },
       { status: 400 }
     );
   }
 
   try {
-    // Create standardized YouTube URL from video ID
-    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-
-    const pythonApiResponse = await fetch("http://127.0.0.1:5001/video", {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+    const response = await fetch(`${apiUrl}/video`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        url: videoUrl,
+        url: `https://www.youtube.com/watch?v=${videoId}`,
         segmentDuration: 30,
-        chunkSize: 300, // 5 minutes per chunk
+        chunkSize: 300,
       }),
     });
 
-    if (pythonApiResponse.ok) {
-      const data = await pythonApiResponse.json();
-      console.log("Python API response:", data);
-
-      return NextResponse.json({
-        title: data.title || `YouTube Video (${videoId})`,
-        channelTitle: data.uploaded_by || "Unknown Channel",
-        publishedAt: data.uploaded_at || new Date().toISOString(),
-        thumbnailUrl: "", // Python API doesn't provide thumbnail
-        transcript: data.transcript || "", // Include transcript from Python API
-        hasTranscript: !!data.transcript_chunk,
-        transcript_chunk: data.transcript_chunk, // Include full transcript chunk data
-        duration: data.duration, // Include video duration
-      });
+    if (!response.ok) {
+      const error = await response.json();
+      return NextResponse.json(error, { status: response.status });
     }
 
-    // If Python API didn't respond properly, return error
-    const errorData = await pythonApiResponse.json().catch(() => ({}));
-    console.error("Python API failed:", {
-      status: pythonApiResponse.status,
-      statusText: pythonApiResponse.statusText,
-      error: errorData,
-    });
-
+    const data = await response.json();
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error("Error fetching video details:", error);
     return NextResponse.json(
       { error: "Failed to fetch video details" },
-      { status: pythonApiResponse.status }
-    );
-  } catch (error) {
-    console.error("Error accessing Python API:", error);
-    return NextResponse.json(
-      { error: "Error accessing video details" },
       { status: 500 }
     );
   }
