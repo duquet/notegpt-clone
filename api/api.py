@@ -238,6 +238,12 @@ def group_transcript_by_interval(entries, interval=30):
 
 @app.route('/video', methods=['POST', 'OPTIONS'])
 def get_video():
+    if request.method == 'OPTIONS':
+        response = jsonify({'ok': True})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        return response, 200
     # Generate a unique request ID for tracking
     request_id = str(uuid.uuid4())[:8]
     print(f"[{request_id}] Received /video request")
@@ -394,6 +400,12 @@ def get_video():
 
 @app.route('/video/chunk', methods=['POST', 'OPTIONS'])
 def get_video_chunk():
+    if request.method == 'OPTIONS':
+        response = jsonify({'ok': True})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        return response, 200
     try:
         data = request.get_json()
         if not data or 'url' not in data or 'startTime' not in data or 'duration' not in data:
@@ -434,6 +446,12 @@ def get_video_chunk():
 
 @app.route('/api/summarize', methods=['POST', 'OPTIONS'])
 def summarize():
+    if request.method == 'OPTIONS':
+        response = jsonify({'ok': True})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        return response, 200
     print("[DEBUG] /api/summarize endpoint called")
     data = request.get_json()
     print(f"[DEBUG] Incoming data: {data}")
