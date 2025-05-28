@@ -70,7 +70,7 @@ def set_residential_proxy():
 
 
 app = Flask(__name__)
-CORS(app, origins="*", supports_credentials=True)
+CORS(app, origins="*", supports_credentials=False)
 
 # Load summary prompts from backend copy
 with open('summaryPrompts.json', 'r') as f:
