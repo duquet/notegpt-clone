@@ -38,7 +38,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   // Debug log to confirm key is loaded
-  console.log("Loaded OpenAI key:", process.env.OPENAI_API_KEY?.slice(0, 8));
+  console.log("Loaded OpenAI key:", process.env.OPENAI_API_KEY?.slice(0, 25));
   const ip = getClientIp(request);
   if (!checkRateLimit(ip)) {
     return NextResponse.json(

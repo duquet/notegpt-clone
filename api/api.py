@@ -9,7 +9,61 @@ import yt_dlp
 from flask_cors import CORS
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
+import requests
+import random
 load_dotenv()
+
+# Debug environment variables at startup
+print("\n[DEBUG] Environment Variables Check:")
+print("-----------------------------------")
+print(f"NEXT_PUBLIC_API_URL: {os.environ.get('NEXT_PUBLIC_API_URL')}")
+print(f"WEBSHARE_PROXY_USERNAME: {os.environ.get('WEBSHARE_PROXY_USERNAME')}")
+print(f"WEBSHARE_PROXY_HOST: {os.environ.get('WEBSHARE_PROXY_HOST')}")
+print(f"WEBSHARE_PROXY_PORT: {os.environ.get('WEBSHARE_PROXY_PORT')}")
+print(
+    f"OPENAI_API_KEY: {'Set' if os.environ.get('OPENAI_API_KEY') else 'Not Set'}")
+print("-----------------------------------\n")
+
+# Webshare proxy rotation setup
+BASE_USERNAME = os.environ.get('WEBSHARE_PROXY_USERNAME')
+if not BASE_USERNAME:
+    print("[ERROR] WEBSHARE_PROXY_USERNAME is not set!")
+USERNAMES = [f"{BASE_USERNAME}-{i}" for i in range(1, 11)]
+PASSWORD = os.environ.get('WEBSHARE_PROXY_PASSWORD')
+if not PASSWORD:
+    print("[ERROR] WEBSHARE_PROXY_PASSWORD is not set!")
+PROXY_HOST = os.environ.get('WEBSHARE_PROXY_HOST')
+if not PROXY_HOST:
+    print("[ERROR] WEBSHARE_PROXY_HOST is not set!")
+PROXY_PORT = os.environ.get('WEBSHARE_PROXY_PORT')
+if not PROXY_PORT:
+    print("[ERROR] WEBSHARE_PROXY_PORT is not set!")
+
+
+def get_random_user_agent():
+    user_agents = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.59'
+    ]
+    return random.choice(user_agents)
+
+
+def get_random_proxy():
+    username = random.choice(USERNAMES)
+    proxy = f"http://{username}:{PASSWORD}@{PROXY_HOST}:{PROXY_PORT}"
+    print(f"[DEBUG] Generated new proxy: {proxy}")
+    return proxy
+
+
+def set_residential_proxy():
+    proxy = get_random_proxy()
+    os.environ['http_proxy'] = proxy
+    os.environ['https_proxy'] = proxy
+    print(f"[Proxy] Using residential proxy: {proxy}")
+    return proxy
 
 # The following code is copied from backend/app.py to unify backend logic in api/api.py
 
@@ -39,20 +93,37 @@ def extract_video_id(url):
 
 
 def get_video_info(url):
+    proxy = set_residential_proxy()
+    print(f"[DEBUG] Using proxy for video info: {proxy}")
+
     ydl_opts = {
         'quiet': True,
         'skip_download': True,
         'extract_flat': True,
         'force_generic_extractor': False,
-    }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        return {
-            'title': info.get('title'),
-            'uploaded_by': info.get('uploader'),
-            'uploaded_at': info.get('upload_date'),
-            'duration': info.get('duration'),
+        'proxy': proxy,
+        'http_headers': {
+            'User-Agent': get_random_user_agent(),
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-us,en;q=0.5',
+            'Sec-Fetch-Mode': 'navigate',
         }
+    }
+
+    print("[DEBUG] Attempting to fetch video info with yt-dlp")
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            print("[DEBUG] Successfully fetched video info")
+            return {
+                'title': info.get('title'),
+                'uploaded_by': info.get('uploader'),
+                'uploaded_at': info.get('upload_date'),
+                'duration': info.get('duration'),
+            }
+    except Exception as e:
+        print(f"[ERROR] Video info error: {str(e)}")
+        raise
 
 
 def retry_on_failure(max_retries=3, delay=1):
@@ -76,13 +147,15 @@ def retry_on_failure(max_retries=3, delay=1):
 
 @retry_on_failure(max_retries=3, delay=1)
 def get_video_transcript(url, start_time=None, duration=None):
+    proxy = set_residential_proxy()
+    print(f"[DEBUG] Using proxy for transcript: {proxy}")
+
     video_id = extract_video_id(url)
     if not video_id:
         print(f"Failed to extract video ID from URL: {url}")
         return None
     try:
         print(f"Fetching transcript for video ID: {video_id}")
-        # Try to get the English transcript first, then fallback
         transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
         try:
             transcript = transcript_list.find_transcript(['en'])
@@ -97,25 +170,18 @@ def get_video_transcript(url, start_time=None, duration=None):
             except Exception as e:
                 print(f"No transcript found: {str(e)}")
                 return None
-
         entries = transcript.fetch()
         print(f"Successfully fetched {len(entries)} transcript entries")
-
-        # Convert FetchedTranscriptSnippet objects to dictionaries
         entries = [{'text': entry.text, 'start': entry.start,
                     'duration': entry.duration} for entry in entries]
-
-        # If start_time and duration are provided, filter entries
         if start_time is not None and duration is not None:
             entries = [entry for entry in entries if start_time <=
                        entry['start'] < start_time + duration]
             print(
                 f"Filtered to {len(entries)} entries for time range {start_time}-{start_time + duration}")
-
         if not entries:
             print("No transcript entries found after filtering")
             return None
-
         return entries
     except Exception as e:
         print(f"Transcript error: {str(e)}")
