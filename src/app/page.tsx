@@ -32,6 +32,8 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const { addVideoToHistory } = useAppContext();
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  console.log("API URL (homepage):", apiUrl);
 
   const extractYoutubeId = (url: string) => {
     const regExp =
@@ -87,228 +89,253 @@ export default function HomePage() {
   };
 
   return (
-    <Box>
-      {/* Header */}
-      <Box
-        component="header"
-        sx={{
-          py: 2,
-          px: 3,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          borderBottom: "1px solid",
-          borderColor: "divider",
-        }}
-      >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <AutoAwesomeIcon sx={{ color: "primary.main" }} />
-          <Typography variant="h6" component="h1" fontWeight="bold">
-            NoteGPT
-          </Typography>
-        </Box>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <ThemeSwitch />
-          <LanguageSwitch />
-          <Button variant="contained" onClick={handleGetStarted} sx={{ ml: 2 }}>
-            Get Started
-          </Button>
-        </Box>
-      </Box>
-
-      {/* Hero Section */}
-      <Box
-        sx={{
-          backgroundImage:
-            "linear-gradient(to bottom, rgba(25, 118, 210, 0.05), rgba(25, 118, 210, 0.1))",
-          py: { xs: 8, md: 12 },
+    <>
+      <div style={{ fontSize: 40, color: "green", textAlign: "center" }}>
+        TEST
+      </div>
+      <div
+        style={{
+          fontSize: 32,
+          fontWeight: "bold",
+          background: "#ffeaea",
+          color: "#b71c1c",
+          padding: 24,
+          marginBottom: 24,
           textAlign: "center",
+          border: "4px solid #b71c1c",
+          borderRadius: 12,
         }}
       >
-        <Container maxWidth="md">
-          <Typography
-            variant="h2"
-            component="h2"
-            gutterBottom
-            fontWeight="bold"
-            sx={{ fontSize: { xs: "2.5rem", md: "3.75rem" } }}
-          >
-            Summarize YouTube Videos Instantly
-          </Typography>
-          <Typography
-            variant="h5"
-            color="text.secondary"
-            paragraph
-            sx={{ mb: 6, maxWidth: "80%", mx: "auto" }}
-          >
-            Save time by getting AI-powered summaries, key points, and notes
-            from any YouTube video.
-          </Typography>
-
-          <Paper
-            component="form"
-            onSubmit={handleSubmit}
-            elevation={3}
-            sx={{
-              p: 2,
-              display: "flex",
-              flexDirection: { xs: "column", sm: "row" },
-              alignItems: "center",
-              gap: 2,
-              maxWidth: "700px",
-              mx: "auto",
-            }}
-          >
-            <TextField
-              fullWidth
-              placeholder="Paste YouTube URL here (e.g., https://www.youtube.com/watch?v=lOxsW7zT1nw)"
-              value={youtubeUrl}
-              onChange={(e) => setYoutubeUrl(e.target.value)}
-              error={!!error}
-              helperText={error}
-              InputProps={{
-                startAdornment: (
-                  <YouTubeIcon sx={{ mr: 1, color: "error.main" }} />
-                ),
-              }}
-            />
+        API URL:{" "}
+        {apiUrl ? apiUrl : <span style={{ color: "red" }}>Not set</span>}
+      </div>
+      <Box>
+        {/* Header */}
+        <Box
+          component="header"
+          sx={{
+            py: 2,
+            px: 3,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            borderBottom: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <AutoAwesomeIcon sx={{ color: "primary.main" }} />
+            <Typography variant="h6" component="h1" fontWeight="bold">
+              NoteGPT
+            </Typography>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <ThemeSwitch />
+            <LanguageSwitch />
             <Button
-              type="submit"
               variant="contained"
-              size="large"
-              disabled={loading}
+              onClick={handleGetStarted}
+              sx={{ ml: 2 }}
+            >
+              Get Started
+            </Button>
+          </Box>
+        </Box>
+
+        {/* Hero Section */}
+        <Box
+          sx={{
+            backgroundImage:
+              "linear-gradient(to bottom, rgba(25, 118, 210, 0.05), rgba(25, 118, 210, 0.1))",
+            py: { xs: 8, md: 12 },
+            textAlign: "center",
+          }}
+        >
+          <Container maxWidth="md">
+            <Typography
+              variant="h2"
+              component="h2"
+              gutterBottom
+              fontWeight="bold"
+              sx={{ fontSize: { xs: "2.5rem", md: "3.75rem" } }}
+            >
+              Summarize YouTube Videos Instantly
+            </Typography>
+            <Typography
+              variant="h5"
+              color="text.secondary"
+              paragraph
+              sx={{ mb: 6, maxWidth: "80%", mx: "auto" }}
+            >
+              Save time by getting AI-powered summaries, key points, and notes
+              from any YouTube video.
+            </Typography>
+
+            <Paper
+              component="form"
+              onSubmit={handleSubmit}
+              elevation={3}
               sx={{
-                px: 3,
-                minWidth: { xs: "100%", sm: "auto" },
+                p: 2,
+                display: "flex",
+                flexDirection: { xs: "column", sm: "row" },
+                alignItems: "center",
+                gap: 2,
+                maxWidth: "700px",
+                mx: "auto",
               }}
             >
-              {loading ? <CircularProgress size={24} /> : "Summarize"}
-            </Button>
-          </Paper>
-        </Container>
-      </Box>
+              <TextField
+                fullWidth
+                placeholder="Paste YouTube URL here (e.g., https://www.youtube.com/watch?v=lOxsW7zT1nw)"
+                value={youtubeUrl}
+                onChange={(e) => setYoutubeUrl(e.target.value)}
+                error={!!error}
+                helperText={error}
+                InputProps={{
+                  startAdornment: (
+                    <YouTubeIcon sx={{ mr: 1, color: "error.main" }} />
+                  ),
+                }}
+              />
+              <Button
+                type="submit"
+                variant="contained"
+                size="large"
+                disabled={loading}
+                sx={{
+                  px: 3,
+                  minWidth: { xs: "100%", sm: "auto" },
+                }}
+              >
+                {loading ? <CircularProgress size={24} /> : "Summarize"}
+              </Button>
+            </Paper>
+          </Container>
+        </Box>
 
-      {/* Features Section */}
-      <Container sx={{ py: 8 }}>
-        <Typography
-          variant="h4"
-          component="h3"
-          textAlign="center"
-          fontWeight="bold"
-          gutterBottom
-          sx={{ mb: 6 }}
-        >
-          Key Features
-        </Typography>
-
-        <Grid container spacing={4}>
-          <Grid item xs={12} md={4}>
-            <Card sx={{ height: "100%" }}>
-              <CardContent sx={{ textAlign: "center", p: 4 }}>
-                <SummarizeIcon
-                  sx={{ fontSize: 60, color: "primary.main", mb: 2 }}
-                />
-                <Typography
-                  variant="h5"
-                  component="h3"
-                  gutterBottom
-                  fontWeight="bold"
-                >
-                  Smart Summaries
-                </Typography>
-                <Typography color="text.secondary">
-                  Get concise summaries of any YouTube video, extracting the
-                  most important information without wasting your time.
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <Card sx={{ height: "100%" }}>
-              <CardContent sx={{ textAlign: "center", p: 4 }}>
-                <NoteAltIcon
-                  sx={{ fontSize: 60, color: "primary.main", mb: 2 }}
-                />
-                <Typography
-                  variant="h5"
-                  component="h3"
-                  gutterBottom
-                  fontWeight="bold"
-                >
-                  Key Points
-                </Typography>
-                <Typography color="text.secondary">
-                  Identify main ideas and key points from videos to enhance your
-                  understanding and retention of the content.
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <Card sx={{ height: "100%" }}>
-              <CardContent sx={{ textAlign: "center", p: 4 }}>
-                <AutoAwesomeIcon
-                  sx={{ fontSize: 60, color: "primary.main", mb: 2 }}
-                />
-                <Typography
-                  variant="h5"
-                  component="h3"
-                  gutterBottom
-                  fontWeight="bold"
-                >
-                  Save Time
-                </Typography>
-                <Typography color="text.secondary">
-                  Stop watching long videos. Get the information you need in
-                  seconds and focus on what matters most.
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-      </Container>
-
-      {/* CTA Section */}
-      <Box sx={{ py: 8, bgcolor: "background.paper" }}>
-        <Container maxWidth="md" sx={{ textAlign: "center" }}>
+        {/* Features Section */}
+        <Container sx={{ py: 8 }}>
           <Typography
             variant="h4"
             component="h3"
-            gutterBottom
+            textAlign="center"
             fontWeight="bold"
+            gutterBottom
+            sx={{ mb: 6 }}
           >
-            Ready to get started?
+            Key Features
           </Typography>
-          <Typography color="text.secondary" paragraph sx={{ mb: 4 }}>
-            Join thousands of users who are saving time with NoteGPT.
-          </Typography>
-          <Button
-            variant="contained"
-            size="large"
-            onClick={handleGetStarted}
-            sx={{ px: 4, py: 1.5 }}
-          >
-            Try NoteGPT Now
-          </Button>
-        </Container>
-      </Box>
 
-      {/* Footer */}
-      <Box
-        component="footer"
-        sx={{
-          py: 4,
-          borderTop: "1px solid",
-          borderColor: "divider",
-          textAlign: "center",
-        }}
-      >
-        <Container>
-          <Typography variant="body2" color="text.secondary">
-            © {new Date().getFullYear()} NoteGPT. All rights reserved.
-          </Typography>
+          <Grid container spacing={4}>
+            <Grid item xs={12} md={4}>
+              <Card sx={{ height: "100%" }}>
+                <CardContent sx={{ textAlign: "center", p: 4 }}>
+                  <SummarizeIcon
+                    sx={{ fontSize: 60, color: "primary.main", mb: 2 }}
+                  />
+                  <Typography
+                    variant="h5"
+                    component="h3"
+                    gutterBottom
+                    fontWeight="bold"
+                  >
+                    Smart Summaries
+                  </Typography>
+                  <Typography color="text.secondary">
+                    Get concise summaries of any YouTube video, extracting the
+                    most important information without wasting your time.
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Card sx={{ height: "100%" }}>
+                <CardContent sx={{ textAlign: "center", p: 4 }}>
+                  <NoteAltIcon
+                    sx={{ fontSize: 60, color: "primary.main", mb: 2 }}
+                  />
+                  <Typography
+                    variant="h5"
+                    component="h3"
+                    gutterBottom
+                    fontWeight="bold"
+                  >
+                    Key Points
+                  </Typography>
+                  <Typography color="text.secondary">
+                    Identify main ideas and key points from videos to enhance
+                    your understanding and retention of the content.
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Card sx={{ height: "100%" }}>
+                <CardContent sx={{ textAlign: "center", p: 4 }}>
+                  <AutoAwesomeIcon
+                    sx={{ fontSize: 60, color: "primary.main", mb: 2 }}
+                  />
+                  <Typography
+                    variant="h5"
+                    component="h3"
+                    gutterBottom
+                    fontWeight="bold"
+                  >
+                    Save Time
+                  </Typography>
+                  <Typography color="text.secondary">
+                    Stop watching long videos. Get the information you need in
+                    seconds and focus on what matters most.
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
         </Container>
+
+        {/* CTA Section */}
+        <Box sx={{ py: 8, bgcolor: "background.paper" }}>
+          <Container maxWidth="md" sx={{ textAlign: "center" }}>
+            <Typography
+              variant="h4"
+              component="h3"
+              gutterBottom
+              fontWeight="bold"
+            >
+              Ready to get started?
+            </Typography>
+            <Typography color="text.secondary" paragraph sx={{ mb: 4 }}>
+              Join thousands of users who are saving time with NoteGPT.
+            </Typography>
+            <Button
+              variant="contained"
+              size="large"
+              onClick={handleGetStarted}
+              sx={{ px: 4, py: 1.5 }}
+            >
+              Try NoteGPT Now
+            </Button>
+          </Container>
+        </Box>
+
+        {/* Footer */}
+        <Box
+          component="footer"
+          sx={{
+            py: 4,
+            borderTop: "1px solid",
+            borderColor: "divider",
+            textAlign: "center",
+          }}
+        >
+          <Container>
+            <Typography variant="body2" color="text.secondary">
+              © {new Date().getFullYear()} NoteGPT. All rights reserved.
+            </Typography>
+          </Container>
+        </Box>
       </Box>
-    </Box>
+    </>
   );
 }

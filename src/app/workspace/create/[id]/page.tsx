@@ -57,9 +57,8 @@ export default function VideoDetailPage() {
   const [channelTitle, setChannelTitle] = useState<string>("");
   const [apiError, setApiError] = useState<boolean>(false);
 
-  // Debug: Show API URL
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-  console.log("API URL (detail page):", apiUrl);
+  console.log("API URL (create/[id]):", apiUrl);
 
   // Find existing note for this video
   useEffect(() => {
@@ -225,6 +224,9 @@ export default function VideoDetailPage() {
 
   return (
     <>
+      <div style={{ fontSize: 40, color: "green", textAlign: "center" }}>
+        TEST
+      </div>
       <div
         style={{
           fontSize: 32,

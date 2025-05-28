@@ -40,6 +40,9 @@ PROXY_PORT = os.environ.get('WEBSHARE_PROXY_PORT')
 if not PROXY_PORT:
     print("[ERROR] WEBSHARE_PROXY_PORT is not set!")
 
+# Add USE_PROXY toggle
+USE_PROXY = os.environ.get('USE_PROXY', 'true').lower() == 'true'
+
 
 def get_random_user_agent():
     user_agents = [
@@ -60,6 +63,9 @@ def get_random_proxy():
 
 
 def set_residential_proxy():
+    if not USE_PROXY:
+        print("[Proxy] Proxy usage disabled.")
+        return None
     proxy = get_random_proxy()
     os.environ['http_proxy'] = proxy
     os.environ['https_proxy'] = proxy
@@ -97,22 +103,36 @@ def extract_video_id(url):
 
 def get_video_info(url):
     proxy = set_residential_proxy()
-    print(f"[DEBUG] Using proxy for video info: {proxy}")
-
-    ydl_opts = {
-        'quiet': True,
-        'skip_download': True,
-        'extract_flat': True,
-        'force_generic_extractor': False,
-        'proxy': proxy,
-        'http_headers': {
-            'User-Agent': get_random_user_agent(),
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-us,en;q=0.5',
-            'Sec-Fetch-Mode': 'navigate',
-        },
-        'cookiefile': 'www.youtube.com_cookies.txt',  # Use cookies for yt-dlp
-    }
+    if proxy:
+        print(f"[DEBUG] Using proxy for video info: {proxy}")
+        ydl_opts = {
+            'quiet': True,
+            'skip_download': True,
+            'extract_flat': True,
+            'force_generic_extractor': False,
+            'proxy': proxy,
+            'http_headers': {
+                'User-Agent': get_random_user_agent(),
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-us,en;q=0.5',
+                'Sec-Fetch-Mode': 'navigate',
+            },
+            'cookiefile': 'www.youtube.com_cookies.txt',  # Use cookies for yt-dlp
+        }
+    else:
+        ydl_opts = {
+            'quiet': True,
+            'skip_download': True,
+            'extract_flat': True,
+            'force_generic_extractor': False,
+            'http_headers': {
+                'User-Agent': get_random_user_agent(),
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-us,en;q=0.5',
+                'Sec-Fetch-Mode': 'navigate',
+            },
+            'cookiefile': 'www.youtube.com_cookies.txt',  # Use cookies for yt-dlp
+        }
 
     print("[DEBUG] Attempting to fetch video info with yt-dlp")
     try:
@@ -152,7 +172,10 @@ def retry_on_failure(max_retries=3, delay=1):
 @retry_on_failure(max_retries=3, delay=1)
 def get_video_transcript(url, start_time=None, duration=None):
     proxy = set_residential_proxy()
-    print(f"[DEBUG] Using proxy for transcript: {proxy}")
+    if proxy:
+        print(f"[DEBUG] Using proxy for transcript: {proxy}")
+    else:
+        print("[Proxy] Proxy usage disabled.")
 
     video_id = extract_video_id(url)
     if not video_id:

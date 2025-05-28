@@ -693,6 +693,9 @@ export default function VideoDetailsPage() {
   const [currentTime, setCurrentTime] = useState(0);
   const timeIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  console.log("API URL (detail/[id]):", apiUrl);
+
   // Fetch video details on component mount OR set PDF title
   useEffect(() => {
     if (isPDF) {
@@ -2223,6 +2226,25 @@ export default function VideoDetailsPage() {
   // Replace the existing transcript section with the new render function
   return (
     <>
+      <div style={{ fontSize: 40, color: "green", textAlign: "center" }}>
+        TEST
+      </div>
+      <div
+        style={{
+          fontSize: 32,
+          fontWeight: "bold",
+          background: "#ffeaea",
+          color: "#b71c1c",
+          padding: 24,
+          marginBottom: 24,
+          textAlign: "center",
+          border: "4px solid #b71c1c",
+          borderRadius: 12,
+        }}
+      >
+        API URL:{" "}
+        {apiUrl ? apiUrl : <span style={{ color: "red" }}>Not set</span>}
+      </div>
       <Box sx={{ p: 2, fontFamily: "Inter, sans-serif" }}>
         <Grid container spacing={0}>
           {/* Left Section */}
