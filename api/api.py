@@ -69,8 +69,7 @@ def set_residential_proxy():
 
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*",
-     "methods": ["GET", "POST", "OPTIONS"]}})
+CORS(app, origins="*", supports_credentials=True)
 
 # Load summary prompts from backend copy
 with open('summaryPrompts.json', 'r') as f:
@@ -232,7 +231,7 @@ def group_transcript_by_interval(entries, interval=30):
     return grouped
 
 
-@app.route('/video', methods=['POST'])
+@app.route('/video', methods=['POST', 'OPTIONS'])
 def get_video():
     try:
         data = request.get_json()
@@ -351,7 +350,7 @@ def get_video():
         }), 500
 
 
-@app.route('/video/chunk', methods=['POST'])
+@app.route('/video/chunk', methods=['POST', 'OPTIONS'])
 def get_video_chunk():
     try:
         data = request.get_json()
@@ -391,7 +390,7 @@ def get_video_chunk():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/summarize', methods=['POST'])
+@app.route('/api/summarize', methods=['POST', 'OPTIONS'])
 def summarize():
     print("[DEBUG] /api/summarize endpoint called")
     data = request.get_json()
