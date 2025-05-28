@@ -52,6 +52,10 @@ export default function CreatePage() {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState("");
 
+  // Debug: Show API URL
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  console.log("API URL:", apiUrl);
+
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
     setError("");
@@ -118,6 +122,18 @@ export default function CreatePage() {
 
   return (
     <>
+      <div
+        style={{
+          background: "#fffbe6",
+          color: "#ad8b00",
+          padding: "8px 16px",
+          borderRadius: 4,
+          marginBottom: 16,
+        }}
+      >
+        <strong>API URL:</strong>{" "}
+        {apiUrl ? apiUrl : <span style={{ color: "red" }}>Not set</span>}
+      </div>
       <WorkspaceHeader title="Create" />
 
       <Card variant="outlined" sx={{ mb: 4 }}>
