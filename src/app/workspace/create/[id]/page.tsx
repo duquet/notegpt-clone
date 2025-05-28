@@ -57,6 +57,10 @@ export default function VideoDetailPage() {
   const [channelTitle, setChannelTitle] = useState<string>("");
   const [apiError, setApiError] = useState<boolean>(false);
 
+  // Debug: Show API URL
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  console.log("API URL (detail page):", apiUrl);
+
   // Find existing note for this video
   useEffect(() => {
     const existingNote = savedNotes.find((note) => note.videoId === videoId);
@@ -221,6 +225,22 @@ export default function VideoDetailPage() {
 
   return (
     <>
+      <div
+        style={{
+          fontSize: 32,
+          fontWeight: "bold",
+          background: "#ffeaea",
+          color: "#b71c1c",
+          padding: 24,
+          marginBottom: 24,
+          textAlign: "center",
+          border: "4px solid #b71c1c",
+          borderRadius: 12,
+        }}
+      >
+        API URL:{" "}
+        {apiUrl ? apiUrl : <span style={{ color: "red" }}>Not set</span>}
+      </div>
       <WorkspaceHeader title={videoTitle || "Video Summary"} />
 
       <Box sx={{ mb: 4 }}>
