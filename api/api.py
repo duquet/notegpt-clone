@@ -78,6 +78,9 @@ with open('summaryPrompts.json', 'r') as f:
 
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
+# Add this line to ensure the app is properly configured for production
+app.config['JSON_AS_ASCII'] = False
+
 
 def extract_video_id(url):
     # Extracts the video ID from a YouTube URL
@@ -491,5 +494,10 @@ def summarize():
         return jsonify({"error": str(e)}), 500
 
 
+# Modify the main block to handle both development and production
 if __name__ == '__main__':
+    # For local development
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5001)), debug=True)
+else:
+    # For production (Gunicorn)
+    gunicorn_app = app
