@@ -11,6 +11,7 @@ from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 import requests
 import random
+import uuid
 load_dotenv()
 
 # Debug environment variables at startup
@@ -234,96 +235,130 @@ def group_transcript_by_interval(entries, interval=30):
 
 @app.route('/video', methods=['POST', 'OPTIONS'])
 def get_video():
+    # Generate a unique request ID for tracking
+    request_id = str(uuid.uuid4())[:8]
+    print(f"[{request_id}] Received /video request")
+
     try:
         data = request.get_json()
-        print(f"[DEBUG] Incoming /video payload: {data}")
+        print(f"[{request_id}] Request payload: {json.dumps(data, indent=2)}")
+
         if not data or 'url' not in data:
-            print("[ERROR] Missing URL in payload")
-            return jsonify({'error': 'Missing URL'}), 400
+            print(f"[{request_id}] [ERROR] Missing URL in payload")
+            return jsonify({
+                'error': 'Missing URL',
+                'request_id': request_id,
+                'details': 'The request must include a YouTube URL'
+            }), 400
 
         url = data['url']
         interval = int(data.get('segmentDuration', 30))
         chunk_size = int(data.get('chunkSize', 300))
 
+        print(f"[{request_id}] Processing video URL: {url}")
         print(
-            f"[DEBUG] Processing video URL: {url} (segment interval: {interval}s, chunk size: {chunk_size}s)")
+            f"[{request_id}] Parameters: interval={interval}s, chunk_size={chunk_size}s")
 
         # Get video info with retry
         try:
+            print(f"[{request_id}] Fetching video info...")
             video_info = get_video_info(url)
             if not video_info:
-                print("[ERROR] Failed to get video info")
-                return jsonify({'error': 'Failed to get video info'}), 400
-            print(f"[DEBUG] Video info retrieved: {video_info}")
+                print(f"[{request_id}] [ERROR] Failed to get video info")
+                return jsonify({
+                    'error': 'Failed to get video info',
+                    'request_id': request_id,
+                    'details': 'Could not retrieve video metadata'
+                }), 400
+            print(
+                f"[{request_id}] Video info retrieved: {json.dumps(video_info, indent=2)}")
         except Exception as e:
-            print(f"[ERROR] Video info error: {str(e)}")
-            return jsonify({'error': 'Failed to get video info', 'details': str(e)}), 500
+            print(f"[{request_id}] [ERROR] Video info error: {str(e)}")
+            return jsonify({
+                'error': 'Failed to get video info',
+                'request_id': request_id,
+                'details': str(e),
+                'type': type(e).__name__
+            }), 500
 
         # Get transcript with retry and detailed error handling
         transcript = None
         last_error = None
         for attempt in range(3):  # 3 retries
             try:
-                print(f"[DEBUG] Transcript fetch attempt {attempt + 1}/3")
+                print(f"[{request_id}] Transcript fetch attempt {attempt + 1}/3")
                 transcript = get_video_transcript(url, 0, chunk_size)
                 if transcript:
                     print(
-                        f"[DEBUG] Successfully fetched transcript with {len(transcript)} entries")
+                        f"[{request_id}] Successfully fetched transcript with {len(transcript)} entries")
                     break
                 else:
                     print(
-                        f"[WARN] Empty transcript returned on attempt {attempt + 1}")
+                        f"[{request_id}] [WARN] Empty transcript returned on attempt {attempt + 1}")
             except NoTranscriptFound as e:
                 last_error = e
                 print(
-                    f"[ERROR] No transcript found (attempt {attempt + 1}): {str(e)}")
+                    f"[{request_id}] [ERROR] No transcript found (attempt {attempt + 1}): {str(e)}")
                 if attempt == 2:  # Last attempt
                     return jsonify({
                         'error': 'No transcript found',
+                        'request_id': request_id,
                         'details': str(e),
-                        'video_info': video_info
+                        'video_info': video_info,
+                        'type': 'NoTranscriptFound'
                     }), 404
             except TranscriptsDisabled as e:
                 last_error = e
                 print(
-                    f"[ERROR] Transcripts disabled (attempt {attempt + 1}): {str(e)}")
+                    f"[{request_id}] [ERROR] Transcripts disabled (attempt {attempt + 1}): {str(e)}")
                 if attempt == 2:  # Last attempt
                     return jsonify({
                         'error': 'Transcripts are disabled',
+                        'request_id': request_id,
                         'details': str(e),
-                        'video_info': video_info
+                        'video_info': video_info,
+                        'type': 'TranscriptsDisabled'
                     }), 403
             except Exception as e:
                 last_error = e
                 print(
-                    f"[ERROR] Transcript error (attempt {attempt + 1}): {str(e)}")
+                    f"[{request_id}] [ERROR] Transcript error (attempt {attempt + 1}): {str(e)}")
                 if attempt == 2:  # Last attempt
                     return jsonify({
                         'error': 'Transcript error',
+                        'request_id': request_id,
                         'details': str(e),
-                        'video_info': video_info
+                        'video_info': video_info,
+                        'type': type(e).__name__
                     }), 500
             time.sleep(1)  # Wait before retry
 
         if not transcript:
-            print("[ERROR] Failed to get transcript after all retries")
+            print(
+                f"[{request_id}] [ERROR] Failed to get transcript after all retries")
             return jsonify({
                 'error': 'No transcript available',
+                'request_id': request_id,
                 'details': str(last_error) if last_error else 'Unknown error',
-                'video_info': video_info
+                'video_info': video_info,
+                'type': type(last_error).__name__ if last_error else 'Unknown'
             }), 404
 
         # Process transcript segments
         try:
+            print(f"[{request_id}] Processing transcript segments...")
             grouped_segments = group_transcript_by_interval(
                 transcript, interval)
-            print(f"[DEBUG] Created {len(grouped_segments)} grouped segments")
+            print(f"[{request_id}] Created {len(grouped_segments)} grouped segments")
         except Exception as e:
-            print(f"[ERROR] Failed to group transcript segments: {str(e)}")
+            print(
+                f"[{request_id}] [ERROR] Failed to group transcript segments: {str(e)}")
             return jsonify({
                 'error': 'Failed to process transcript',
+                'request_id': request_id,
                 'details': str(e),
-                'video_info': video_info
+                'video_info': video_info,
+                'type': type(e).__name__
             }), 500
 
         response_data = {
@@ -338,16 +373,19 @@ def get_video():
                 'segment_duration': interval,
                 'total_duration': video_info['duration'],
                 'chunk_size': chunk_size
-            }
+            },
+            'request_id': request_id
         }
-        print(f"[DEBUG] Successfully processed video request for: {url}")
+        print(f"[{request_id}] Successfully processed video request for: {url}")
         return jsonify(response_data)
 
     except Exception as e:
-        print(f"[ERROR] Unexpected error in /video endpoint: {str(e)}")
+        print(f"[{request_id}] [ERROR] Unexpected error in /video endpoint: {str(e)}")
         return jsonify({
             'error': 'Internal server error',
-            'details': str(e)
+            'request_id': request_id,
+            'details': str(e),
+            'type': type(e).__name__
         }), 500
 
 
@@ -454,4 +492,4 @@ def summarize():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5001)), debug=True)
