@@ -2084,57 +2084,78 @@ export default function VideoDetailsPage() {
     setTranscriptLoading(true);
     setError(null);
 
-    try {
-      console.log("[VideoDetails] Fetching transcript from API");
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
-      const response = await fetch(`${apiUrl}/video`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          url: `https://www.youtube.com/watch?v=${params.id}`,
-          segmentDuration: 30,
-        }),
-      });
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 1000; // 1 second
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch transcript: ${response.statusText}`);
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        console.log(`[VideoDetails] Fetching transcript from API (attempt ${attempt}/${MAX_RETRIES})`);
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+        const response = await fetch(`${apiUrl}/video`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            url: `https://www.youtube.com/watch?v=${params.id}`,
+            segmentDuration: 30,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.warn(`[VideoDetails] Transcript fetch attempt ${attempt} failed:`, errorData);
+          
+          if (attempt === MAX_RETRIES) {
+            throw new Error(`Failed to fetch transcript: ${response.statusText}`);
+          }
+          
+          // Wait before retrying
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+          continue;
+        }
+
+        const data = await response.json();
+        performanceMetrics.current.transcriptEnd = Date.now();
+        console.log(`[Performance] Transcript fetch completed: ${performanceMetrics.current.transcriptEnd - performanceMetrics.current.transcriptStart}ms`);
+        console.log(`[Performance] Total page load time: ${Date.now() - performanceMetrics.current.pageLoadStart}ms`);
+        console.log("[VideoDetails] Received transcript data:", {
+          hasTranscript: !!data.transcript,
+          transcriptLength: data.transcript?.length || 0,
+        });
+
+        if (!data.transcript) {
+          if (attempt === MAX_RETRIES) {
+            throw new Error("No transcript data received after all attempts");
+          }
+          console.warn(`[VideoDetails] No transcript data on attempt ${attempt}, retrying...`);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+          continue;
+        }
+
+        // Create segments from the transcript
+        const segments = createTranscriptSegments(data.transcript, data.duration);
+        setTranscriptSegments(segments);
+        setTranslatedSegments(segments); // Initialize translated segments with original
+        setIsInitialLoad(false);
+        return; // Success, exit the function
+      } catch (error) {
+        console.error(`[VideoDetails] Transcript API error (attempt ${attempt}):`, error);
+        if (attempt === MAX_RETRIES) {
+          setError(
+            error instanceof Error ? error.message : "Failed to fetch transcript"
+          );
+          setTranscriptSegments([
+            {
+              startTime: 0,
+              endTime: 30,
+              text: "Failed to load transcript. Please try again later.",
+            },
+          ]);
+        }
       }
-
-      const data = await response.json();
-      performanceMetrics.current.transcriptEnd = Date.now();
-      console.log(`[Performance] Transcript fetch completed: ${performanceMetrics.current.transcriptEnd - performanceMetrics.current.transcriptStart}ms`);
-      console.log(`[Performance] Total page load time: ${Date.now() - performanceMetrics.current.pageLoadStart}ms`);
-      console.log("[VideoDetails] Received transcript data:", {
-        hasTranscript: !!data.transcript,
-        transcriptLength: data.transcript?.length || 0,
-      });
-
-      if (!data.transcript) {
-        throw new Error("No transcript data received");
-      }
-
-      // Create segments from the transcript
-      const segments = createTranscriptSegments(data.transcript, data.duration);
-      setTranscriptSegments(segments);
-      setTranslatedSegments(segments); // Initialize translated segments with original
-      setIsInitialLoad(false);
-    } catch (error) {
-      console.error("[VideoDetails] Transcript API error:", error);
-      setError(
-        error instanceof Error ? error.message : "Failed to fetch transcript"
-      );
-      setTranscriptSegments([
-        {
-          startTime: 0,
-          endTime: 30,
-          text: "Failed to load transcript. Please try again later.",
-        },
-      ]);
-    } finally {
-      setTranscriptLoading(false);
     }
+    setTranscriptLoading(false);
   };
 
   // Add loading indicator component
