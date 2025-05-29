@@ -43,6 +43,26 @@ if not PROXY_PORT:
 # Add USE_PROXY toggle
 USE_PROXY = os.environ.get('USE_PROXY', 'true').lower() == 'true'
 
+# Decodo proxy setup
+def get_decodo_proxy():
+    use_decodo = os.environ.get('USE_DECODO_PROXY', 'false').lower() == 'true'
+    if not use_decodo:
+        return None
+    host = os.environ.get('DECODO_PROXY_HOST')
+    ports = os.environ.get('DECODO_PROXY_PORTS', '')
+    username = os.environ.get('DECODO_PROXY_USERNAME')
+    password = os.environ.get('DECODO_PROXY_PASSWORD')
+    if not (host and ports and username and password):
+        print('[Decodo Proxy] Missing environment variables.')
+        return None
+    port_list = [p.strip() for p in ports.split(',') if p.strip()]
+    if not port_list:
+        print('[Decodo Proxy] No ports specified.')
+        return None
+    port = random.choice(port_list)
+    proxy_url = f"http://{username}:{password}@{host}:{port}"
+    print(f"[Decodo Proxy] Using proxy: {proxy_url}")
+    return proxy_url
 
 def get_random_user_agent():
     user_agents = [
@@ -63,14 +83,28 @@ def get_random_proxy():
 
 
 def set_residential_proxy():
-    if not USE_PROXY:
+    use_webshare = os.environ.get('USE_WEBSHARE_PROXY', 'false').lower() == 'true'
+    use_decodo = os.environ.get('USE_DECODO_PROXY', 'false').lower() == 'true'
+
+    if use_webshare:
+        proxy = get_random_proxy()
+        os.environ['http_proxy'] = proxy
+        os.environ['https_proxy'] = proxy
+        print(f"[Proxy] Using Webshare proxy: {proxy}")
+        return proxy
+    elif use_decodo:
+        proxy = get_decodo_proxy()
+        if proxy:
+            os.environ['http_proxy'] = proxy
+            os.environ['https_proxy'] = proxy
+            print(f"[Proxy] Using Decodo proxy: {proxy}")
+            return proxy
+        else:
+            print("[Proxy] Decodo proxy requested but not configured properly.")
+            return None
+    else:
         print("[Proxy] Proxy usage disabled.")
         return None
-    proxy = get_random_proxy()
-    os.environ['http_proxy'] = proxy
-    os.environ['https_proxy'] = proxy
-    print(f"[Proxy] Using residential proxy: {proxy}")
-    return proxy
 
 # The following code is copied from backend/app.py to unify backend logic in api/api.py
 
