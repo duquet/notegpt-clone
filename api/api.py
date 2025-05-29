@@ -18,11 +18,21 @@ load_dotenv()
 print("\n[DEBUG] Environment Variables Check:")
 print("-----------------------------------")
 print(f"NEXT_PUBLIC_API_URL: {os.environ.get('NEXT_PUBLIC_API_URL')}")
-print(f"WEBSHARE_PROXY_USERNAME: {os.environ.get('WEBSHARE_PROXY_USERNAME')}")
-print(f"WEBSHARE_PROXY_HOST: {os.environ.get('WEBSHARE_PROXY_HOST')}")
-print(f"WEBSHARE_PROXY_PORT: {os.environ.get('WEBSHARE_PROXY_PORT')}")
-print(
-    f"OPENAI_API_KEY: {'Set' if os.environ.get('OPENAI_API_KEY') else 'Not Set'}")
+print(f"OPENAI_API_KEY: {'Set' if os.environ.get('OPENAI_API_KEY') else 'Not Set'}")
+
+if os.environ.get('USE_WEBSHARE_PROXY', 'false').lower() == 'true':
+    print("[Proxy] Using Webshare Proxy")
+    print(f"WEBSHARE_PROXY_USERNAME: {os.environ.get('WEBSHARE_PROXY_USERNAME')}")
+    print(f"WEBSHARE_PROXY_HOST: {os.environ.get('WEBSHARE_PROXY_HOST')}")
+    print(f"WEBSHARE_PROXY_PORT: {os.environ.get('WEBSHARE_PROXY_PORT')}")
+elif os.environ.get('USE_DECODO_PROXY', 'false').lower() == 'true':
+    print("[Proxy] Using Decodo Proxy")
+    print(f"DECODO_PROXY_HOST: {os.environ.get('DECODO_PROXY_HOST')}")
+    print(f"DECODO_PROXY_USERNAME: {os.environ.get('DECODO_PROXY_USERNAME')}")
+    print(f"DECODO_PROXY_PORT_MIN: {os.environ.get('DECODO_PROXY_PORT_MIN')}")
+    print(f"DECODO_PROXY_PORT_MAX: {os.environ.get('DECODO_PROXY_PORT_MAX')}")
+else:
+    print("[Proxy] No proxy in use.")
 print("-----------------------------------\n")
 
 # Webshare proxy rotation setup
