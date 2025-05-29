@@ -515,9 +515,18 @@ export default function VideoDetailsPage() {
     proxySetupEnd: number | null;
     ytdlpStart: number | null;
     ytdlpEnd: number | null;
+    videoInfoStart?: number | null;
+    videoInfoEnd?: number | null;
+    summaryStart?: number | null;
+    summaryEnd?: number | null;
   }
 
-  const performanceMetrics = useRef<PerformanceMetrics>({
+  const performanceMetrics = useRef<PerformanceMetrics & {
+    videoInfoStart?: number | null;
+    videoInfoEnd?: number | null;
+    summaryStart?: number | null;
+    summaryEnd?: number | null;
+  }>({
     pageLoadStart: Date.now(),
     videoPlayerReady: null,
     transcriptStart: null,
@@ -525,7 +534,11 @@ export default function VideoDetailsPage() {
     proxySetupStart: null,
     proxySetupEnd: null,
     ytdlpStart: null,
-    ytdlpEnd: null
+    ytdlpEnd: null,
+    videoInfoStart: null,
+    videoInfoEnd: null,
+    summaryStart: null,
+    summaryEnd: null,
   });
 
   const [playerState, setPlayerState] = useState({
@@ -742,7 +755,9 @@ export default function VideoDetailsPage() {
         } else {
           console.log("[VideoDetails] Video not in history, fetching from API");
           try {
+            performanceMetrics.current.videoInfoStart = Date.now();
             const videoDetails = await getYouTubeVideoDetails(params.id as string);
+            performanceMetrics.current.videoInfoEnd = Date.now();
             if (videoDetails) {
               console.log("[VideoDetails] Successfully fetched video details:", {
                 title: videoDetails.title,
@@ -757,6 +772,7 @@ export default function VideoDetailsPage() {
               setEditedTitle(fallbackTitle);
             }
           } catch (error) {
+            performanceMetrics.current.videoInfoEnd = Date.now();
             console.error("[VideoDetails] Error fetching video details:", error);
             setApiError(true);
             const fallbackTitle = generateFallbackTitle(params.id as string);
@@ -767,7 +783,6 @@ export default function VideoDetailsPage() {
           }
         }
       } catch (error) {
-        console.error("[VideoDetails] Error in fetchVideoDetails:", error);
         setLoading(false);
       }
     };
@@ -1427,6 +1442,7 @@ export default function VideoDetailsPage() {
 
     try {
       setIsSummarizing(true);
+      performanceMetrics.current.summaryStart = Date.now();
 
       // Use extracted PDF text for PDFs, transcript for videos
       const fullContent = isPDF
@@ -1536,7 +1552,9 @@ export default function VideoDetailsPage() {
           },
         ]);
       }
+      performanceMetrics.current.summaryEnd = Date.now();
     } catch (error) {
+      performanceMetrics.current.summaryEnd = Date.now();
       console.error("Error generating summary:", error);
       setSummaryContent(
         "An error occurred while generating the summary. Please try again."
@@ -2077,7 +2095,6 @@ export default function VideoDetailsPage() {
         body: JSON.stringify({
           url: `https://www.youtube.com/watch?v=${params.id}`,
           segmentDuration: 30,
-          chunkSize: CHUNK_DURATION,
         }),
       });
 
@@ -2090,41 +2107,33 @@ export default function VideoDetailsPage() {
       console.log(`[Performance] Transcript fetch completed: ${performanceMetrics.current.transcriptEnd - performanceMetrics.current.transcriptStart}ms`);
       console.log(`[Performance] Total page load time: ${Date.now() - performanceMetrics.current.pageLoadStart}ms`);
       console.log("[VideoDetails] Received transcript data:", {
-        hasTranscript: !!data.transcript_chunk,
-        transcriptLength: data.transcript_chunk?.grouped_segments?.length || 0,
+        hasTranscript: !!data.transcript,
+        transcriptLength: data.transcript?.length || 0,
       });
 
-      if (!data.transcript_chunk?.grouped_segments) {
+      if (!data.transcript) {
         throw new Error("No transcript data received");
       }
 
-      // Calculate total chunks
-      const totalChunks = Math.ceil(data.duration / CHUNK_DURATION);
-      setTotalChunks(totalChunks);
-
-      // Set initial chunk
-      const initialChunk: TranscriptChunk = {
-        startTime: data.transcript_chunk.start_time,
-        endTime: data.transcript_chunk.end_time,
-        segments: data.transcript_chunk.grouped_segments.map(
-          (segment: any) => ({
-            startTime: segment.startTime,
-            endTime: segment.endTime,
-            text: segment.text,
-          })
-        ),
-      };
-
-      setTranscriptChunks([initialChunk]);
-      setTranscriptSegments(initialChunk.segments);
-      setCurrentChunkIndex(0);
-      setLastChunkEndTime(data.transcript_chunk.end_time);
+      // Create segments from the transcript
+      const segments = createTranscriptSegments(data.transcript, data.duration);
+      setTranscriptSegments(segments);
+      setTranslatedSegments(segments); // Initialize translated segments with original
       setIsInitialLoad(false);
     } catch (error) {
       console.error("[VideoDetails] Transcript API error:", error);
       setError(
         error instanceof Error ? error.message : "Failed to fetch transcript"
       );
+      setTranscriptSegments([
+        {
+          startTime: 0,
+          endTime: 30,
+          text: "Failed to load transcript. Please try again later.",
+        },
+      ]);
+    } finally {
+      setTranscriptLoading(false);
     }
   };
 
@@ -2188,6 +2197,8 @@ export default function VideoDetailsPage() {
       pageLoad: 0,
       playerReady: 0,
       transcriptFetch: 0,
+      videoInfo: 0,
+      summary: 0,
       totalTime: 0
     });
 
@@ -2201,10 +2212,13 @@ export default function VideoDetailsPage() {
             performanceMetrics.current.transcriptStart - performanceMetrics.current.videoPlayerReady : 0,
           transcriptFetch: performanceMetrics.current.transcriptEnd && performanceMetrics.current.transcriptStart ? 
             performanceMetrics.current.transcriptEnd - performanceMetrics.current.transcriptStart : 0,
+          videoInfo: performanceMetrics.current.videoInfoStart && performanceMetrics.current.videoInfoEnd ?
+            performanceMetrics.current.videoInfoEnd - performanceMetrics.current.videoInfoStart : 0,
+          summary: performanceMetrics.current.summaryStart && performanceMetrics.current.summaryEnd ?
+            performanceMetrics.current.summaryEnd - performanceMetrics.current.summaryStart : 0,
           totalTime: now - performanceMetrics.current.pageLoadStart
         });
       };
-
       const interval = setInterval(updateMetrics, 1000);
       return () => clearInterval(interval);
     }, []);
@@ -2214,7 +2228,9 @@ export default function VideoDetailsPage() {
         <Typography variant="h6">Performance Metrics</Typography>
         <Typography>Page Load: {metrics.pageLoad}ms</Typography>
         <Typography>Player Ready: {metrics.playerReady}ms</Typography>
+        <Typography>Video Info Fetch: {metrics.videoInfo}ms</Typography>
         <Typography>Transcript Fetch: {metrics.transcriptFetch}ms</Typography>
+        <Typography>Summary Generation: {metrics.summary}ms</Typography>
         <Typography>Total Time: {metrics.totalTime}ms</Typography>
         <Typography>Player State: {JSON.stringify(playerState)}</Typography>
       </Box>
