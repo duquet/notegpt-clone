@@ -43,3 +43,14 @@ api/api.log
 api/env/
 api/api.log
 api/api.log
+# Ignore SpecStory logs and notes
+.specstory/
+API_PROXY_SETUP_AND_GUIDE.md
+RENDER_VERCEL_SETUP_GUIDE.md
+api/logs_result.json
+api/run_backend.sh
+api/www.youtube.com_cookies.txt
+api/temp.txt
+run_backend.sh
+test-transcript.js
+.github/
