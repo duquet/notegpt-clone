@@ -49,17 +49,11 @@ def get_decodo_proxy():
     if not use_decodo:
         return None
     host = os.environ.get('DECODO_PROXY_HOST')
-    ports = os.environ.get('DECODO_PROXY_PORTS', '')
     username = os.environ.get('DECODO_PROXY_USERNAME')
     password = os.environ.get('DECODO_PROXY_PASSWORD')
-    if not (host and ports and username and password):
-        print('[Decodo Proxy] Missing environment variables.')
-        return None
-    port_list = [p.strip() for p in ports.split(',') if p.strip()]
-    if not port_list:
-        print('[Decodo Proxy] No ports specified.')
-        return None
-    port = random.choice(port_list)
+    port_min = int(os.environ.get('DECODO_PROXY_PORT_MIN', 10001))
+    port_max = int(os.environ.get('DECODO_PROXY_PORT_MAX', 10010))
+    port = random.randint(port_min, port_max)
     proxy_url = f"http://{username}:{password}@{host}:{port}"
     print(f"[Decodo Proxy] Using proxy: {proxy_url}")
     return proxy_url
