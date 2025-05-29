@@ -503,6 +503,7 @@ def get_video():
             'uploaded_by': video_info['uploaded_by'],
             'uploaded_at': video_info['uploaded_at'],
             'duration': video_info['duration'],
+            'transcript': transcript,
             'transcript_chunk': {
                 'grouped_segments': grouped_segments,
                 'start_time': 0,

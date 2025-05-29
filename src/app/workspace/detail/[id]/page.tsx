@@ -2085,7 +2085,7 @@ export default function VideoDetailsPage() {
     setError(null);
 
     const MAX_RETRIES = 3;
-    const RETRY_DELAY = 1000; // 1 second
+    const RETRY_DELAY = 1000;
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
@@ -2134,10 +2134,19 @@ export default function VideoDetailsPage() {
         }
 
         // Create segments from the transcript
-        const segments = createTranscriptSegments(data.transcript, data.duration);
+        let transcriptText = "";
+        if (Array.isArray(data.transcript)) {
+          transcriptText = data.transcript.map((seg: any) => seg.text).join(" ");
+        } else if (typeof data.transcript === "string") {
+          transcriptText = data.transcript;
+        } else {
+          transcriptText = "";
+        }
+        const segments = createTranscriptSegments(transcriptText, data.duration);
         setTranscriptSegments(segments);
         setTranslatedSegments(segments); // Initialize translated segments with original
         setIsInitialLoad(false);
+        setTranscriptLoading(false); // Set loading to false on success
         return; // Success, exit the function
       } catch (error) {
         console.error(`[VideoDetails] Transcript API error (attempt ${attempt}):`, error);
@@ -2152,10 +2161,11 @@ export default function VideoDetailsPage() {
               text: "Failed to load transcript. Please try again later.",
             },
           ]);
+          setTranscriptLoading(false); // Set loading to false on final error
         }
       }
     }
-    setTranscriptLoading(false);
+    setTranscriptLoading(false); // Set loading to false if we exit the loop without success
   };
 
   // Add loading indicator component
