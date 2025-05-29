@@ -82,6 +82,8 @@ declare global {
         PLAYING: number;
         PAUSED: number;
         ENDED: number;
+        BUFFERING: number;
+        UNSTARTED: number;
       };
     };
     onYouTubeIframeAPIReady: (() => void) | null;
@@ -504,15 +506,39 @@ export default function VideoDetailsPage() {
   const pdfUrl = Array.isArray(rawPdfUrl) ? rawPdfUrl[0] : rawPdfUrl;
   const isPDF = type === "pdf" && !!pdfUrl;
 
-  // Add performance tracking
-  const pageLoadStartTime = useRef<number>(Date.now());
+  interface PerformanceMetrics {
+    pageLoadStart: number;
+    videoPlayerReady: number | null;
+    transcriptStart: number | null;
+    transcriptEnd: number | null;
+    proxySetupStart: number | null;
+    proxySetupEnd: number | null;
+    ytdlpStart: number | null;
+    ytdlpEnd: number | null;
+  }
+
+  const performanceMetrics = useRef<PerformanceMetrics>({
+    pageLoadStart: Date.now(),
+    videoPlayerReady: null,
+    transcriptStart: null,
+    transcriptEnd: null,
+    proxySetupStart: null,
+    proxySetupEnd: null,
+    ytdlpStart: null,
+    ytdlpEnd: null
+  });
+
+  const [playerState, setPlayerState] = useState({
+    isReady: false,
+    isBuffering: false,
+    isPlaying: false,
+    metadataLoaded: false
+  });
 
   // Log initial render time
   useEffect(() => {
-    const initialRenderTime = Date.now() - pageLoadStartTime.current;
-    console.log(
-      `[Performance] Page initial render time: ${initialRenderTime}ms`
-    );
+    const initialRenderTime = Date.now() - performanceMetrics.current.pageLoadStart;
+    console.log(`[Performance] Page initial render time: ${initialRenderTime}ms`);
 
     // Start performance monitoring
     const perfObserver = new PerformanceObserver((list) => {
@@ -558,7 +584,7 @@ export default function VideoDetailsPage() {
       perfObserver.disconnect();
       console.log(
         `[Performance] Total page lifetime: ${
-          Date.now() - pageLoadStartTime.current
+          Date.now() - performanceMetrics.current.pageLoadStart
         }ms`
       );
     };
@@ -766,14 +792,14 @@ export default function VideoDetailsPage() {
     };
 
     const fetchTranscript = async () => {
-      console.log("[VideoDetails] Starting to fetch transcript");
+      performanceMetrics.current.transcriptStart = Date.now();
+      console.log('[Performance] Starting transcript fetch');
       setTranscriptLoading(true);
       setError(null);
 
       try {
         console.log("[VideoDetails] Fetching transcript from API");
-        const apiUrl =
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
         const response = await fetch(`${apiUrl}/video`, {
           method: "POST",
           headers: {
@@ -797,6 +823,9 @@ export default function VideoDetailsPage() {
         }
 
         const data = await response.json();
+        performanceMetrics.current.transcriptEnd = Date.now();
+        console.log(`[Performance] Transcript fetch completed: ${performanceMetrics.current.transcriptEnd - performanceMetrics.current.transcriptStart}ms`);
+        console.log(`[Performance] Total page load time: ${Date.now() - performanceMetrics.current.pageLoadStart}ms`);
         console.log("[VideoDetails] Received transcript data:", {
           hasTranscript: !!data.transcript_chunk,
           transcriptLength:
@@ -1050,11 +1079,12 @@ export default function VideoDetailsPage() {
 
   // Handle YouTube player ready event
   const handleReady = (event: YouTubeEvent) => {
-    console.log(
-      `[Performance] YouTube player ready: ${
-        Date.now() - pageLoadStartTime.current
-      }ms`
-    );
+    performanceMetrics.current.videoPlayerReady = Date.now();
+    console.log(`[Performance] YouTube player ready: ${performanceMetrics.current.videoPlayerReady - performanceMetrics.current.pageLoadStart}ms`);
+    
+    setPlayerState(prev => ({...prev, isReady: true}));
+    console.log('[Player State] Player ready');
+    
     playerRef.current = event.target;
 
     // Get and store video duration when player is ready
@@ -1109,6 +1139,15 @@ export default function VideoDetailsPage() {
 
   // Handle YouTube player state change
   const handleStateChange = (event: YouTubeEvent) => {
+    const newState = {
+      isBuffering: event.data === window.YT.PlayerState.BUFFERING,
+      isPlaying: event.data === window.YT.PlayerState.PLAYING,
+      metadataLoaded: event.data >= window.YT.PlayerState.UNSTARTED
+    };
+    
+    setPlayerState(prev => ({...prev, ...newState}));
+    console.log('[Player State]', newState);
+    
     if (event.data === window.YT.PlayerState.PLAYING) {
       startTimeTracking();
     } else if (event.data === window.YT.PlayerState.PAUSED) {
@@ -2119,8 +2158,13 @@ export default function VideoDetailsPage() {
 
   // Modify fetchTranscript to handle chunked data
   const fetchTranscript = async () => {
+    performanceMetrics.current.transcriptStart = Date.now();
+    console.log('[Performance] Starting transcript fetch');
+    setTranscriptLoading(true);
+    setError(null);
+
     try {
-      console.log("[VideoDetails] Starting to fetch transcript");
+      console.log("[VideoDetails] Fetching transcript from API");
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
       const response = await fetch(`${apiUrl}/video`, {
         method: "POST",
@@ -2139,6 +2183,9 @@ export default function VideoDetailsPage() {
       }
 
       const data = await response.json();
+      performanceMetrics.current.transcriptEnd = Date.now();
+      console.log(`[Performance] Transcript fetch completed: ${performanceMetrics.current.transcriptEnd - performanceMetrics.current.transcriptStart}ms`);
+      console.log(`[Performance] Total page load time: ${Date.now() - performanceMetrics.current.pageLoadStart}ms`);
       console.log("[VideoDetails] Received transcript data:", {
         hasTranscript: !!data.transcript_chunk,
         transcriptLength: data.transcript_chunk?.grouped_segments?.length || 0,
@@ -2232,9 +2279,49 @@ export default function VideoDetailsPage() {
     );
   };
 
-  // Replace the existing transcript section with the new render function
+  // Add PerformanceMonitor component
+  const PerformanceMonitor = () => {
+    const [metrics, setMetrics] = useState({
+      pageLoad: 0,
+      playerReady: 0,
+      transcriptFetch: 0,
+      totalTime: 0
+    });
+
+    useEffect(() => {
+      const updateMetrics = () => {
+        const now = Date.now();
+        setMetrics({
+          pageLoad: performanceMetrics.current.videoPlayerReady ? 
+            performanceMetrics.current.videoPlayerReady - performanceMetrics.current.pageLoadStart : 0,
+          playerReady: performanceMetrics.current.transcriptStart && performanceMetrics.current.videoPlayerReady ? 
+            performanceMetrics.current.transcriptStart - performanceMetrics.current.videoPlayerReady : 0,
+          transcriptFetch: performanceMetrics.current.transcriptEnd && performanceMetrics.current.transcriptStart ? 
+            performanceMetrics.current.transcriptEnd - performanceMetrics.current.transcriptStart : 0,
+          totalTime: now - performanceMetrics.current.pageLoadStart
+        });
+      };
+
+      const interval = setInterval(updateMetrics, 1000);
+      return () => clearInterval(interval);
+    }, []);
+
+    return (
+      <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 1, mb: 2 }}>
+        <Typography variant="h6">Performance Metrics</Typography>
+        <Typography>Page Load: {metrics.pageLoad}ms</Typography>
+        <Typography>Player Ready: {metrics.playerReady}ms</Typography>
+        <Typography>Transcript Fetch: {metrics.transcriptFetch}ms</Typography>
+        <Typography>Total Time: {metrics.totalTime}ms</Typography>
+        <Typography>Player State: {JSON.stringify(playerState)}</Typography>
+      </Box>
+    );
+  };
+
+  // Add PerformanceMonitor to the render
   return (
-    <>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+      <PerformanceMonitor />
       <div style={{ fontSize: 40, color: "green", textAlign: "center" }}>
         TEST
       </div>
@@ -4281,6 +4368,6 @@ export default function VideoDetailsPage() {
           </DialogActions>
         </Dialog>
       </Box>
-    </>
+    </Box>
   );
 }

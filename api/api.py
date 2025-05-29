@@ -139,9 +139,26 @@ def extract_video_id(url):
     return None
 
 
+def timing_decorator(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        print(f"[Performance] {func.__name__} took {end_time - start_time:.2f} seconds")
+        return result
+    return wrapper
+
+
+@timing_decorator
 def get_video_info(url):
+    start_time = time.time()
+    print("[Performance] Starting video info fetch")
+    
     proxy = set_residential_proxy()
     if proxy:
+        proxy_start = time.time()
+        print("[Performance] Setting up proxy...")
         print(f"[DEBUG] Using proxy for video info: {proxy}")
         ydl_opts = {
             'quiet': True,
@@ -155,9 +172,11 @@ def get_video_info(url):
                 'Accept-Language': 'en-us,en;q=0.5',
                 'Sec-Fetch-Mode': 'navigate',
             },
-            'cookiefile': 'www.youtube.com_cookies.txt',  # Use cookies for yt-dlp
+            'cookiefile': 'www.youtube.com_cookies.txt',
         }
+        print(f"[Performance] Proxy setup took {time.time() - proxy_start:.2f} seconds")
     else:
+        print("[Proxy] Proxy usage disabled.")
         ydl_opts = {
             'quiet': True,
             'skip_download': True,
@@ -169,13 +188,15 @@ def get_video_info(url):
                 'Accept-Language': 'en-us,en;q=0.5',
                 'Sec-Fetch-Mode': 'navigate',
             },
-            'cookiefile': 'www.youtube.com_cookies.txt',  # Use cookies for yt-dlp
+            'cookiefile': 'www.youtube.com_cookies.txt',
         }
 
     print("[DEBUG] Attempting to fetch video info with yt-dlp")
     try:
+        ytdlp_start = time.time()
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
+            print(f"[Performance] yt-dlp took {time.time() - ytdlp_start:.2f} seconds")
             print("[DEBUG] Successfully fetched video info")
             return {
                 'title': info.get('title'),
@@ -186,6 +207,8 @@ def get_video_info(url):
     except Exception as e:
         print(f"[ERROR] Video info error: {str(e)}")
         raise
+    finally:
+        print(f"[Performance] Total video info fetch took {time.time() - start_time:.2f} seconds")
 
 
 def retry_on_failure(max_retries=3, delay=1):
@@ -207,11 +230,18 @@ def retry_on_failure(max_retries=3, delay=1):
     return decorator
 
 
+@timing_decorator
 @retry_on_failure(max_retries=3, delay=1)
 def get_video_transcript(url, start_time=None, duration=None):
+    start_time_total = time.time()
+    print("[Performance] Starting transcript fetch")
+    
     proxy = set_residential_proxy()
     if proxy:
+        proxy_start = time.time()
+        print("[Performance] Setting up proxy...")
         print(f"[DEBUG] Using proxy for transcript: {proxy}")
+        print(f"[Performance] Proxy setup took {time.time() - proxy_start:.2f} seconds")
     else:
         print("[Proxy] Proxy usage disabled.")
 
@@ -219,15 +249,16 @@ def get_video_transcript(url, start_time=None, duration=None):
     if not video_id:
         print(f"Failed to extract video ID from URL: {url}")
         return None
+        
     try:
         print(f"Fetching transcript for video ID: {video_id}")
+        transcript_start = time.time()
         transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
         try:
             transcript = transcript_list.find_transcript(['en'])
             print("Found English transcript")
         except (NoTranscriptFound, TranscriptsDisabled) as e:
-            print(
-                f"English transcript not found, trying manually created: {str(e)}")
+            print(f"English transcript not found, trying manually created: {str(e)}")
             try:
                 transcript = transcript_list.find_manually_created_transcript(
                     transcript_list._manually_created_transcripts.keys())
@@ -235,18 +266,22 @@ def get_video_transcript(url, start_time=None, duration=None):
             except Exception as e:
                 print(f"No transcript found: {str(e)}")
                 return None
+                
         entries = transcript.fetch()
+        print(f"[Performance] Transcript fetch took {time.time() - transcript_start:.2f} seconds")
         print(f"Successfully fetched {len(entries)} transcript entries")
+        
         entries = [{'text': entry.text, 'start': entry.start,
                     'duration': entry.duration} for entry in entries]
         if start_time is not None and duration is not None:
             entries = [entry for entry in entries if start_time <=
                        entry['start'] < start_time + duration]
-            print(
-                f"Filtered to {len(entries)} entries for time range {start_time}-{start_time + duration}")
+            print(f"Filtered to {len(entries)} entries for time range {start_time}-{start_time + duration}")
         if not entries:
             print("No transcript entries found after filtering")
             return None
+            
+        print(f"[Performance] Total transcript processing took {time.time() - start_time_total:.2f} seconds")
         return entries
     except Exception as e:
         print(f"Transcript error: {str(e)}")
@@ -297,6 +332,7 @@ def group_transcript_by_interval(entries, interval=30):
     return grouped
 
 
+@timing_decorator
 @app.route('/video', methods=['POST', 'OPTIONS'])
 def get_video():
     if request.method == 'OPTIONS':
@@ -305,7 +341,8 @@ def get_video():
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
         response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
         return response, 200
-    # Generate a unique request ID for tracking
+        
+    start_time = time.time()
     request_id = str(uuid.uuid4())[:8]
     print(f"[{request_id}] Received /video request")
 
@@ -326,8 +363,7 @@ def get_video():
         chunk_size = int(data.get('chunkSize', 300))
 
         print(f"[{request_id}] Processing video URL: {url}")
-        print(
-            f"[{request_id}] Parameters: interval={interval}s, chunk_size={chunk_size}s")
+        print(f"[{request_id}] Parameters: interval={interval}s, chunk_size={chunk_size}s")
 
         # Get video info with retry
         try:
@@ -340,8 +376,7 @@ def get_video():
                     'request_id': request_id,
                     'details': 'Could not retrieve video metadata'
                 }), 400
-            print(
-                f"[{request_id}] Video info retrieved: {json.dumps(video_info, indent=2)}")
+            print(f"[{request_id}] Video info retrieved: {json.dumps(video_info, indent=2)}")
         except Exception as e:
             print(f"[{request_id}] [ERROR] Video info error: {str(e)}")
             return jsonify({
@@ -359,16 +394,13 @@ def get_video():
                 print(f"[{request_id}] Transcript fetch attempt {attempt + 1}/3")
                 transcript = get_video_transcript(url, 0, chunk_size)
                 if transcript:
-                    print(
-                        f"[{request_id}] Successfully fetched transcript with {len(transcript)} entries")
+                    print(f"[{request_id}] Successfully fetched transcript with {len(transcript)} entries")
                     break
                 else:
-                    print(
-                        f"[{request_id}] [WARN] Empty transcript returned on attempt {attempt + 1}")
+                    print(f"[{request_id}] [WARN] Empty transcript returned on attempt {attempt + 1}")
             except NoTranscriptFound as e:
                 last_error = e
-                print(
-                    f"[{request_id}] [ERROR] No transcript found (attempt {attempt + 1}): {str(e)}")
+                print(f"[{request_id}] [ERROR] No transcript found (attempt {attempt + 1}): {str(e)}")
                 if attempt == 2:  # Last attempt
                     return jsonify({
                         'error': 'No transcript found',
@@ -379,8 +411,7 @@ def get_video():
                     }), 404
             except TranscriptsDisabled as e:
                 last_error = e
-                print(
-                    f"[{request_id}] [ERROR] Transcripts disabled (attempt {attempt + 1}): {str(e)}")
+                print(f"[{request_id}] [ERROR] Transcripts disabled (attempt {attempt + 1}): {str(e)}")
                 if attempt == 2:  # Last attempt
                     return jsonify({
                         'error': 'Transcripts are disabled',
@@ -391,8 +422,7 @@ def get_video():
                     }), 403
             except Exception as e:
                 last_error = e
-                print(
-                    f"[{request_id}] [ERROR] Transcript error (attempt {attempt + 1}): {str(e)}")
+                print(f"[{request_id}] [ERROR] Transcript error (attempt {attempt + 1}): {str(e)}")
                 if attempt == 2:  # Last attempt
                     return jsonify({
                         'error': 'Transcript error',
@@ -404,8 +434,7 @@ def get_video():
             time.sleep(1)  # Wait before retry
 
         if not transcript:
-            print(
-                f"[{request_id}] [ERROR] Failed to get transcript after all retries")
+            print(f"[{request_id}] [ERROR] Failed to get transcript after all retries")
             return jsonify({
                 'error': 'No transcript available',
                 'request_id': request_id,
@@ -417,12 +446,10 @@ def get_video():
         # Process transcript segments
         try:
             print(f"[{request_id}] Processing transcript segments...")
-            grouped_segments = group_transcript_by_interval(
-                transcript, interval)
+            grouped_segments = group_transcript_by_interval(transcript, interval)
             print(f"[{request_id}] Created {len(grouped_segments)} grouped segments")
         except Exception as e:
-            print(
-                f"[{request_id}] [ERROR] Failed to group transcript segments: {str(e)}")
+            print(f"[{request_id}] [ERROR] Failed to group transcript segments: {str(e)}")
             return jsonify({
                 'error': 'Failed to process transcript',
                 'request_id': request_id,
@@ -444,9 +471,16 @@ def get_video():
                 'total_duration': video_info['duration'],
                 'chunk_size': chunk_size
             },
-            'request_id': request_id
+            'request_id': request_id,
+            'performance_metrics': {
+                'total_time': time.time() - start_time,
+                'video_info_time': time.time() - start_time,  # This will be updated in the actual implementation
+                'transcript_time': time.time() - start_time,  # This will be updated in the actual implementation
+                'processing_time': time.time() - start_time   # This will be updated in the actual implementation
+            }
         }
         print(f"[{request_id}] Successfully processed video request for: {url}")
+        print(f"[{request_id}] Total request processing time: {time.time() - start_time:.2f} seconds")
         return jsonify(response_data)
 
     except Exception as e:
