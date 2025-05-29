@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 import requests
 import random
 import uuid
+from threading import Lock
 load_dotenv()
 
 # Debug environment variables at startup
@@ -125,6 +126,13 @@ openai.api_key = os.environ.get("OPENAI_API_KEY")
 # Add this line to ensure the app is properly configured for production
 app.config['JSON_AS_ASCII'] = False
 
+video_info_cache = {}
+video_info_cache_lock = Lock()
+first_loads_video_info = set()
+
+transcript_cache = {}
+transcript_cache_lock = Lock()
+first_loads_transcript = set()
 
 def extract_video_id(url):
     # Extracts the video ID from a YouTube URL
@@ -152,6 +160,21 @@ def timing_decorator(func):
 
 @timing_decorator
 def get_video_info(url):
+    video_id = extract_video_id(url)
+    if not video_id:
+        print(f"[Cache] Invalid video URL: {url}")
+        return None
+
+    # For dev: skip cache on first load
+    if video_id not in first_loads_video_info:
+        print(f"[Dev] Skipping cache for first load of {video_id}")
+        first_loads_video_info.add(video_id)
+    else:
+        with video_info_cache_lock:
+            if video_id in video_info_cache:
+                print(f"[Cache] Returning cached video info for {video_id}")
+                return video_info_cache[video_id]
+
     start_time = time.time()
     print("[Performance] Starting video info fetch")
     
@@ -198,12 +221,16 @@ def get_video_info(url):
             info = ydl.extract_info(url, download=False)
             print(f"[Performance] yt-dlp took {time.time() - ytdlp_start:.2f} seconds")
             print("[DEBUG] Successfully fetched video info")
-            return {
+            result = {
                 'title': info.get('title'),
                 'uploaded_by': info.get('uploader'),
                 'uploaded_at': info.get('upload_date'),
                 'duration': info.get('duration'),
             }
+            # Store in cache
+            with video_info_cache_lock:
+                video_info_cache[video_id] = result
+            return result
     except Exception as e:
         print(f"[ERROR] Video info error: {str(e)}")
         raise
@@ -233,6 +260,22 @@ def retry_on_failure(max_retries=3, delay=1):
 @timing_decorator
 @retry_on_failure(max_retries=3, delay=1)
 def get_video_transcript(url, start_time=None, duration=None):
+    video_id = extract_video_id(url)
+    cache_key = (video_id, start_time, duration)
+    if not video_id:
+        print(f"[Cache] Invalid video URL: {url}")
+        return None
+
+    # For dev: skip cache on first load
+    if cache_key not in first_loads_transcript:
+        print(f"[Dev] Skipping cache for first load of {cache_key}")
+        first_loads_transcript.add(cache_key)
+    else:
+        with transcript_cache_lock:
+            if cache_key in transcript_cache:
+                print(f"[Cache] Returning cached transcript for {cache_key}")
+                return transcript_cache[cache_key]
+
     start_time_total = time.time()
     print("[Performance] Starting transcript fetch")
     
@@ -245,11 +288,6 @@ def get_video_transcript(url, start_time=None, duration=None):
     else:
         print("[Proxy] Proxy usage disabled.")
 
-    video_id = extract_video_id(url)
-    if not video_id:
-        print(f"Failed to extract video ID from URL: {url}")
-        return None
-        
     try:
         print(f"Fetching transcript for video ID: {video_id}")
         transcript_start = time.time()
@@ -282,6 +320,8 @@ def get_video_transcript(url, start_time=None, duration=None):
             return None
             
         print(f"[Performance] Total transcript processing took {time.time() - start_time_total:.2f} seconds")
+        with transcript_cache_lock:
+            transcript_cache[cache_key] = entries
         return entries
     except Exception as e:
         print(f"Transcript error: {str(e)}")
