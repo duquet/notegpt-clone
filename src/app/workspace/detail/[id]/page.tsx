@@ -7,7 +7,6 @@ import YouTube, {
   YouTubeProps,
   YouTubeEvent,
 } from "react-youtube";
-import pptxgen from "pptxgenjs";
 import {
   Box,
   Grid,
@@ -69,12 +68,10 @@ import ReactMarkdown from "react-markdown";
 import SchoolIcon from "@mui/icons-material/School";
 import { v4 as uuidv4 } from "uuid";
 import ImageIcon from "@mui/icons-material/Image";
-import { Document, Page, pdfjs } from "react-pdf";
-import "react-pdf/dist/esm/Page/AnnotationLayer.css";
-import "react-pdf/dist/esm/Page/TextLayer.css";
-import PDFViewer from "@/app/workspace/detail/[id]/components/PDFViewer";
 import { extractPdfText } from "@/utils/pdfUtils";
 import summaryPrompts from "@/utils/summaryPrompts.json";
+import dynamic from "next/dynamic";
+const PDFViewer = dynamic(() => import("@/app/workspace/detail/[id]/components/PDFViewer"), { ssr: false });
 
 // Add YouTube API types
 declare global {
@@ -1979,7 +1976,19 @@ export default function VideoDetailsPage() {
     setShowCopyAlert(true);
   };
 
-  pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
+  // Dynamically set pdfjs workerSrc only on client
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      if (typeof window !== "undefined") {
+        const mod = await import("react-pdf");
+        if (isMounted && mod && mod.pdfjs && mod.pdfjs.GlobalWorkerOptions) {
+          mod.pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
+        }
+      }
+    })();
+    return () => { isMounted = false; };
+  }, []);
 
   // PDF summary effect
   useEffect(() => {
@@ -3249,7 +3258,9 @@ export default function VideoDetailsPage() {
                     },
                     "&::-webkit-scrollbar-thumb": {
                       background:
-                        theme.palette.mode === "light" ? "#D1D5DB" : "#4a4a5a",
+                        theme.palette.mode === "light"
+                          ? "#D1D5DB"
+                          : "#4a4a5a",
                       borderRadius: "3px",
                       "&:hover": {
                         background:
@@ -3612,9 +3623,10 @@ export default function VideoDetailsPage() {
                                   size="small"
                                   onClick={async () => {
                                     try {
+                                      // Dynamically import pptxgenjs only on client
+                                      const pptxgen = (await import("pptxgenjs")).default;
                                       // Create a new presentation
                                       const pres = new pptxgen();
-
                                       // Set presentation properties
                                       pres.layout = "LAYOUT_16x9";
                                       pres.author = "NoteGPT";
