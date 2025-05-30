@@ -580,6 +580,7 @@ def get_video_chunk():
         return jsonify({'error': str(e)}), 500
 
 
+@timing_decorator
 @app.route('/api/summarize', methods=['POST', 'OPTIONS'])
 def summarize():
     if request.method == 'OPTIONS':
@@ -588,69 +589,261 @@ def summarize():
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
         response.headers.add('Access-Control-Allow-Methods', 'POST, OPTIONS')
         return response, 200
-    print("[DEBUG] /api/summarize endpoint called")
-    data = request.get_json()
-    print(f"[DEBUG] Incoming data: {data}")
-    url = data.get('url')
-    pdf_text = data.get('pdfText')
-    options = data.get('options', {})
 
-    # Determine template type
-    template_type = options if isinstance(options, str) else options.get("templateType", "default")
-    custom_prompt = None
-    custom_title = None
-    system_prompt = None
-
-    print(f"[DEBUG] Using template_type: {template_type}")
-
-    # Get prompt config from summaryPrompts.json
-    prompt_config = SUMMARY_PROMPTS.get(
-        template_type, SUMMARY_PROMPTS["default"])
-    system_prompt = system_prompt or prompt_config.get("systemPrompt", "")
-    user_prompt = prompt_config.get("userPrompt", "")
-
-    # If a custom prompt is provided, use it (for future extensibility)
-    if custom_prompt:
-        user_prompt = custom_prompt
-
-    # For PDFs, use the provided text
-    if pdf_text:
-        transcript_text = pdf_text
-    # For videos, fetch the full transcript using the URL
-    elif url:
-        transcript_entries = get_video_transcript(url)
-        if not transcript_entries:
-            return jsonify({'error': 'No transcript found for video'}), 404
-        transcript_text = " ".join(entry.get("text", "") for entry in transcript_entries)
-    else:
-        return jsonify({'error': 'No transcript or url provided'}), 400
-
-    print(f"[DEBUG] Joined transcript text (first 500 chars): {transcript_text[:500]}")
-    user_prompt = user_prompt.replace("{transcript}", transcript_text)
-
-    # Compose OpenAI messages
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_prompt}
-    ]
-
-    print(
-        f"[DEBUG] Calling OpenAI with system prompt: {system_prompt[:100]}...")
-    print(f"[DEBUG] User prompt (first 100 chars): {user_prompt[:100]}...")
+    start_time = time.time()
+    request_id = str(uuid.uuid4())[:8]
+    print(f"[{request_id}] /api/summarize endpoint called")
 
     try:
-        response = openai.chat.completions.create(
-            model="gpt-3.5-turbo",  # or "gpt-4" if you have access
-            messages=messages,
-            max_tokens=1500,
-            temperature=0.7,
-        )
-        summary = response.choices[0].message.content.strip()
-        print("[DEBUG] OpenAI call successful, returning summary.")
-        return jsonify({"summary": summary})
+        data = request.get_json()
+        print(f"[{request_id}] Incoming data: {json.dumps(data, indent=2)}")
+
+        # Extract parameters
+        url = data.get('url')
+        video_id = data.get('videoId')
+        pdf_text = data.get('pdfText')
+        options = data.get('options', {})
+
+        # Determine template type
+        template_type = options if isinstance(options, str) else options.get("templateType", "default")
+        custom_prompt = options.get("customPrompt") if isinstance(options, dict) else None
+
+        print(f"[{request_id}] Using template_type: {template_type}")
+
+        # Template validation
+        if template_type not in SUMMARY_PROMPTS:
+            available_templates = list(SUMMARY_PROMPTS.keys())
+            error_msg = f"Invalid template type: {template_type}. Available types: {', '.join(available_templates)}"
+            print(f"[{request_id}] [ERROR] {error_msg}")
+            return jsonify({
+                'error': error_msg,
+                'request_id': request_id,
+                'available_templates': available_templates
+            }), 400
+
+        # Get prompt config from summaryPrompts.json
+        prompt_config = SUMMARY_PROMPTS[template_type]
+        system_prompt = prompt_config.get("systemPrompt", "")
+        user_prompt = prompt_config.get("userPrompt", "")
+        template_title = prompt_config.get("title", template_type.title())
+
+        # If a custom prompt is provided, use it
+        if custom_prompt:
+            user_prompt = custom_prompt
+
+        # Transcript assembly - backend now handles full transcript assembly
+        transcript_text = ""
+        transcript_fetch_start = time.time()
+
+        if pdf_text:
+            # For PDFs, use the provided text
+            transcript_text = pdf_text
+            print(f"[{request_id}] Using provided PDF text ({len(transcript_text)} chars)")
+        elif url or video_id:
+            # For videos, fetch the full transcript using URL or video ID
+            video_url = url if url else f"https://www.youtube.com/watch?v={video_id}"
+            print(f"[{request_id}] Fetching full transcript for: {video_url}")
+
+            transcript_entries = get_video_transcript(video_url)
+            if not transcript_entries:
+                print(f"[{request_id}] [ERROR] No transcript found for video")
+                return jsonify({
+                    'error': 'No transcript found for video',
+                    'request_id': request_id,
+                    'video_url': video_url
+                }), 404
+
+            # Assemble full transcript from entries
+            transcript_text = " ".join(entry.get("text", "") for entry in transcript_entries)
+            transcript_fetch_time = time.time() - transcript_fetch_start
+
+            print(f"[{request_id}] Assembled transcript: {len(transcript_entries)} segments, "
+                  f"{len(transcript_text)} total chars, took {transcript_fetch_time:.2f}s")
+        else:
+            print(f"[{request_id}] [ERROR] No content source provided")
+            return jsonify({
+                'error': 'No content source provided. Specify url, videoId, or pdfText',
+                'request_id': request_id
+            }), 400
+
+        print(f"[{request_id}] Final transcript length: {len(transcript_text)} chars")
+        print(f"[{request_id}] Transcript preview (first 200 chars): {transcript_text[:200]}...")
+
+        # Replace placeholders in user prompt
+        if '{transcript}' in user_prompt:
+            user_prompt = user_prompt.replace("{transcript}", transcript_text)
+        elif '{content}' in user_prompt:
+            user_prompt = user_prompt.replace("{content}", transcript_text)
+
+        # Compose OpenAI messages
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+
+        print(f"[{request_id}] Calling OpenAI with template: {template_type}")
+        print(f"[{request_id}] System prompt (first 100 chars): {system_prompt[:100]}...")
+        print(f"[{request_id}] User prompt length: {len(user_prompt)} chars")
+
+        # Call OpenAI API
+        openai_start = time.time()
+        try:
+            response = openai.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=messages,
+                max_tokens=1500,
+                temperature=0.7,
+            )
+            summary_raw = response.choices[0].message.content.strip()
+            openai_time = time.time() - openai_start
+
+            print(f"[{request_id}] OpenAI call successful, took {openai_time:.2f}s")
+            print(f"[{request_id}] Raw summary length: {len(summary_raw)} chars")
+
+        except Exception as e:
+            print(f"[{request_id}] [ERROR] OpenAI call failed: {e}")
+            return jsonify({
+                "error": f"OpenAI API error: {str(e)}",
+                "request_id": request_id
+            }), 500
+
+        # Parse response based on template type
+        parsing_start = time.time()
+        structured_response = parse_summary_response(summary_raw, template_type, template_title)
+        parsing_time = time.time() - parsing_start
+
+        total_time = time.time() - start_time
+
+        # Add performance metrics
+        structured_response['performance_metrics'] = {
+            'total_time': total_time,
+            'transcript_fetch_time': transcript_fetch_time if 'transcript_fetch_time' in locals() else 0,
+            'openai_time': openai_time,
+            'parsing_time': parsing_time,
+            'request_id': request_id
+        }
+
+        print(f"[{request_id}] Successfully processed summary request, total time: {total_time:.2f}s")
+        return jsonify(structured_response)
+
     except Exception as e:
-        print(f"[ERROR] OpenAI call failed: {e}")
-        return jsonify({"error": str(e)}), 500
+        total_time = time.time() - start_time
+        print(f"[{request_id}] [ERROR] Unexpected error in /api/summarize: {str(e)}")
+        return jsonify({
+            "error": f"Internal server error: {str(e)}",
+            "request_id": request_id,
+            "processing_time": total_time
+        }), 500
+
+
+def parse_summary_response(summary_raw, template_type, template_title):
+    """Parse AI response into structured JSON based on template type"""
+    
+    # Special handling for quiz/flashcard templates
+    if template_type in ['quiz-flashcards', 'pdf-flashcard']:
+        # Try to extract JSON array from markdown code blocks
+        import re
+        json_match = re.search(r'```json\s*(\[.*?\])\s*```', summary_raw, re.DOTALL)
+        if json_match:
+            try:
+                flashcards = json.loads(json_match.group(1))
+                return {
+                    'templateType': template_type,
+                    'title': template_title,
+                    'flashcards': flashcards,
+                    'raw_content': summary_raw
+                }
+            except json.JSONDecodeError:
+                pass
+        
+        # Fallback: return raw content if JSON parsing fails
+        return {
+            'templateType': template_type,
+            'title': template_title,
+            'flashcards': [],
+            'raw_content': summary_raw,
+            'parsing_error': 'Failed to extract JSON flashcards'
+        }
+    
+    # For other templates, parse into sections
+    sections = parse_markdown_sections(summary_raw)
+    
+    return {
+        'templateType': template_type,
+        'title': template_title,
+        'sections': sections,
+        'raw_content': summary_raw
+    }
+
+
+def parse_markdown_sections(content):
+    """Parse markdown content into sections"""
+    sections = []
+    lines = content.split('\n')
+    current_section = None
+    current_content = []
+    
+    for line in lines:
+        # Check for section headers (bold markdown: **Header**)
+        import re
+        header_match = re.match(r'^\*\*(.+?)\*\*\s*$', line.strip())
+        if header_match:
+            # Save previous section
+            if current_section:
+                sections.append({
+                    'name': current_section,
+                    'content': '\n'.join(current_content).strip()
+                })
+            
+            # Start new section
+            current_section = header_match.group(1)
+            current_content = []
+        else:
+            # Add line to current section content
+            if line.strip():  # Skip empty lines
+                current_content.append(line)
+    
+    # Add last section
+    if current_section:
+        sections.append({
+            'name': current_section,
+            'content': '\n'.join(current_content).strip()
+        })
+    
+    # If no sections found, create a single "Summary" section
+    if not sections:
+        sections.append({
+            'name': 'Summary',
+            'content': content.strip()
+        })
+    
+    return sections
+
+
+@app.route('/api/templates', methods=['GET', 'OPTIONS'])
+def get_templates():
+    """Return available template configurations"""
+    if request.method == 'OPTIONS':
+        response = jsonify({'ok': True})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, OPTIONS')
+        return response, 200
+    
+    try:
+        # Return only template type and title for frontend
+        templates = []
+        for template_type, config in SUMMARY_PROMPTS.items():
+            templates.append({
+                'type': template_type,
+                'title': config.get('title', template_type.title())
+            })
+        
+        print(f"[DEBUG] Returning {len(templates)} template configurations")
+        return jsonify(templates)
+    except Exception as e:
+        print(f"[ERROR] Failed to get templates: {e}")
+        return jsonify({'error': 'Failed to get templates'}), 500
 
 
 # Modify the main block to handle both development and production

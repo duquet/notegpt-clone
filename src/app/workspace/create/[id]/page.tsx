@@ -10,6 +10,14 @@ import {
   Tab,
   Paper,
   Button,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Card,
+  CardContent,
+  Divider,
+  Alert,
 } from "@mui/material";
 import { WorkspaceHeader } from "@/components/workspace-header";
 import { useAppContext, VideoSummary, UserNote } from "@/contexts";
@@ -18,6 +26,12 @@ import {
   getYouTubeVideoDetails,
   generateFallbackTitle,
 } from "@/utils/youtubeApi";
+import { 
+  TemplateConfig, 
+  StructuredSummaryResponse, 
+  SummarySection,
+  Flashcard 
+} from "@/types/summary";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -41,6 +55,83 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
+function SummaryRenderer({ summaryData }: { summaryData?: StructuredSummaryResponse | null }) {
+  if (!summaryData) {
+    return (
+      <Typography variant="body2" color="text.secondary">
+        No summary available yet.
+      </Typography>
+    );
+  }
+
+  if (summaryData.flashcards && summaryData.flashcards.length > 0) {
+    return (
+      <Box>
+        <Typography variant="h6" gutterBottom>
+          {summaryData.title}
+        </Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {summaryData.flashcards.map((card: Flashcard, index: number) => (
+            <Card key={index} variant="outlined">
+              <CardContent>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  {card.category} • {card.difficulty}
+                </Typography>
+                <Typography variant="h6" gutterBottom>
+                  Q: {card.question}
+                </Typography>
+                <Divider sx={{ my: 1 }} />
+                <Typography variant="body1">
+                  A: {card.answer}
+                </Typography>
+              </CardContent>
+            </Card>
+          ))}
+        </Box>
+        {summaryData.parsing_error && (
+          <Alert severity="warning" sx={{ mt: 2 }}>
+            {summaryData.parsing_error}
+          </Alert>
+        )}
+      </Box>
+    );
+  }
+
+  if (summaryData.sections && summaryData.sections.length > 0) {
+    return (
+      <Box>
+        <Typography variant="h6" gutterBottom>
+          {summaryData.title}
+        </Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {summaryData.sections.map((section: SummarySection, index: number) => (
+            <Box key={index}>
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
+                {section.name}
+              </Typography>
+              <Typography variant="body1" sx={{ whiteSpace: 'pre-line' }}>
+                {section.content}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+      </Box>
+    );
+  }
+
+  // Fallback to raw content
+  return (
+    <Box>
+      <Typography variant="h6" gutterBottom>
+        {summaryData.title}
+      </Typography>
+      <Typography variant="body1" sx={{ whiteSpace: 'pre-line' }}>
+        {summaryData.raw_content}
+      </Typography>
+    </Box>
+  );
+}
+
 export default function VideoDetailPage() {
   const params = useParams();
   const videoId = params.id as string;
@@ -48,17 +139,42 @@ export default function VideoDetailPage() {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [transcript, setTranscript] = useState<string>("");
-  const [summary, setSummary] = useState<string>("");
+  const [summaryData, setSummaryData] = useState<StructuredSummaryResponse | null>(null);
   const [noteContent, setNoteContent] = useState("");
-  const { addVideoToHistory, saveNote, savedNotes, recentVideos } =
-    useAppContext();
+  const { addVideoToHistory, saveNote, savedNotes, recentVideos } = useAppContext();
   const [noteSaved, setNoteSaved] = useState(false);
   const [videoTitle, setVideoTitle] = useState<string>("");
   const [channelTitle, setChannelTitle] = useState<string>("");
   const [apiError, setApiError] = useState<boolean>(false);
+  
+  // Template management
+  const [templates, setTemplates] = useState<TemplateConfig[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("default");
+  const [templateError, setTemplateError] = useState<string | null>(null);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
   console.log("API URL (create/[id]):", apiUrl);
+
+  // Fetch templates on component mount
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://notegpt-clone.onrender.com";
+        const response = await fetch(`${apiUrl}/api/templates`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch templates');
+        }
+        const templateConfigs: TemplateConfig[] = await response.json();
+        setTemplates(templateConfigs);
+        console.log(`Loaded ${templateConfigs.length} templates:`, templateConfigs.map(t => t.type));
+      } catch (error) {
+        console.error('Error fetching templates:', error);
+        setTemplateError('Failed to load summary templates');
+      }
+    };
+
+    fetchTemplates();
+  }, []);
 
   // Find existing note for this video
   useEffect(() => {
@@ -140,12 +256,13 @@ export default function VideoDetailPage() {
     fetchVideoData();
   }, [videoId, addVideoToHistory, apiError, recentVideos]);
 
-  // Generate summary when transcript is loaded
+  // Generate summary when transcript is loaded or template changes
   useEffect(() => {
     const generateSummary = async () => {
       if (
         !transcript ||
-        transcript === "No transcript available for this video."
+        transcript === "No transcript available for this video." ||
+        !selectedTemplate
       ) {
         return;
       }
@@ -153,40 +270,64 @@ export default function VideoDetailPage() {
       setSummaryLoading(true);
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://notegpt-clone.onrender.com";
+        
+        // Use new API format - send videoId instead of transcript
         const response = await fetch(`${apiUrl}/api/summarize`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            transcript,
+            videoId: videoId,
             options: {
-              templateType: "default",
+              templateType: selectedTemplate,
             },
           }),
         });
 
         if (!response.ok) {
-          throw new Error("Failed to generate summary");
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to generate summary");
         }
 
-        const data = await response.json();
-        setSummary(data.summary);
+        const data: StructuredSummaryResponse = await response.json();
+        setSummaryData(data);
+        
+        console.log('Summary generated:', {
+          templateType: data.templateType,
+          hasFlashcards: !!data.flashcards,
+          sectionCount: data.sections?.length || 0,
+          performance: data.performance_metrics
+        });
+        
       } catch (error) {
         console.error("Error generating summary:", error);
-        setSummary(
-          "An error occurred while generating the summary. Please try again."
-        );
+        setSummaryData({
+          templateType: selectedTemplate,
+          title: "Error",
+          raw_content: "An error occurred while generating the summary. Please try again.",
+          performance_metrics: {
+            total_time: 0,
+            transcript_fetch_time: 0,
+            openai_time: 0,
+            parsing_time: 0,
+            request_id: ''
+          }
+        });
       } finally {
         setSummaryLoading(false);
       }
     };
 
     generateSummary();
-  }, [transcript]);
+  }, [transcript, selectedTemplate, videoId]);
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
+  };
+
+  const handleTemplateChange = (event: any) => {
+    setSelectedTemplate(event.target.value);
   };
 
   const handleSaveNote = () => {
@@ -268,6 +409,31 @@ export default function VideoDetailPage() {
           ></iframe>
         </Box>
 
+        {/* Template selector */}
+        <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+          <FormControl sx={{ minWidth: 200 }}>
+            <InputLabel id="template-select-label">Summary Template</InputLabel>
+            <Select
+              labelId="template-select-label"
+              value={selectedTemplate}
+              label="Summary Template"
+              onChange={handleTemplateChange}
+              disabled={templates.length === 0}
+            >
+              {templates.map((template) => (
+                <MenuItem key={template.type} value={template.type}>
+                  {template.title}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          {templateError && (
+            <Alert severity="error" sx={{ flexGrow: 1 }}>
+              {templateError}
+            </Alert>
+          )}
+        </Box>
+
         {/* Summary and Transcript tabs */}
         <Paper sx={{ mb: 3 }}>
           <Tabs
@@ -319,10 +485,23 @@ export default function VideoDetailPage() {
                       sx={{ display: "flex", justifyContent: "center", py: 4 }}
                     >
                       <CircularProgress />
+                      <Typography variant="body2" sx={{ ml: 2 }}>
+                        Generating {templates.find(t => t.type === selectedTemplate)?.title || 'summary'}...
+                      </Typography>
                     </Box>
                   ) : (
-                    <Box sx={{ whiteSpace: "pre-line" }}>
-                      {summary || "No summary available yet."}
+                    <SummaryRenderer summaryData={summaryData} />
+                  )}
+
+                  {/* Performance metrics (optional, for debugging) */}
+                  {summaryData?.performance_metrics && (
+                    <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Processing time: {summaryData.performance_metrics.total_time.toFixed(2)}s
+                        {summaryData.performance_metrics.request_id && 
+                          ` (ID: ${summaryData.performance_metrics.request_id})`
+                        }
+                      </Typography>
                     </Box>
                   )}
                 </Box>
@@ -366,41 +545,22 @@ export default function VideoDetailPage() {
                     value={noteContent}
                     onChange={handleNoteChange}
                   />
-                  <Box
-                    sx={{
-                      mt: 2,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                    }}
-                  >
+                  <Box sx={{ mt: 2, display: "flex", gap: 2 }}>
+                    <Button variant="contained" onClick={handleSaveNote}>
+                      Save Note
+                    </Button>
+                    <Button variant="outlined" onClick={handleDiscardNote}>
+                      Discard Changes
+                    </Button>
                     {noteSaved && (
                       <Typography
                         variant="body2"
                         color="success.main"
-                        sx={{ fontWeight: "medium" }}
+                        sx={{ alignSelf: "center" }}
                       >
-                        ✓ Note saved successfully!
+                        ✓ Note saved!
                       </Typography>
                     )}
-                    <Box sx={{ ml: "auto" }}>
-                      <Button
-                        variant="outlined"
-                        sx={{ mr: 1 }}
-                        onClick={handleDiscardNote}
-                      >
-                        {savedNotes.find((note) => note.videoId === videoId)
-                          ? "Revert Changes"
-                          : "Discard"}
-                      </Button>
-                      <Button
-                        variant="contained"
-                        onClick={handleSaveNote}
-                        disabled={!noteContent.trim()}
-                      >
-                        Save Notes
-                      </Button>
-                    </Box>
                   </Box>
                 </Box>
               </TabPanel>
