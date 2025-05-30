@@ -152,7 +152,8 @@ export default function VideoDetailPage() {
 
       setSummaryLoading(true);
       try {
-        const response = await fetch("/api/summarize", {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://notegpt-clone.onrender.com";
+        const response = await fetch(`${apiUrl}/api/summarize`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
