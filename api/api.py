@@ -620,8 +620,12 @@ def summarize():
     if custom_prompt:
         user_prompt = custom_prompt
 
-    # Format the user prompt with the transcript
-    user_prompt = user_prompt.replace("{transcript}", transcript)
+    # Check if transcript is a list of entries (from YouTube) and join them into a single string
+    if isinstance(transcript, list):
+        transcript_text = " ".join(entry.get("text", "") for entry in transcript)
+    else:
+        transcript_text = transcript
+    user_prompt = user_prompt.replace("{transcript}", transcript_text)
 
     # Compose OpenAI messages
     messages = [
