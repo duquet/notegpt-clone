@@ -591,22 +591,15 @@ def summarize():
     print("[DEBUG] /api/summarize endpoint called")
     data = request.get_json()
     print(f"[DEBUG] Incoming data: {data}")
-    transcript = data.get('transcript')
+    url = data.get('url')
+    pdf_text = data.get('pdfText')
     options = data.get('options', {})
 
-    # Determine template type and customizations
-    template_type = "default"
+    # Determine template type
+    template_type = options if isinstance(options, str) else options.get("templateType", "default")
     custom_prompt = None
     custom_title = None
     system_prompt = None
-
-    if isinstance(options, dict):
-        template_type = options.get("templateType", "default")
-        custom_prompt = options.get("customPrompt")
-        custom_title = options.get("customTitle")
-        system_prompt = options.get("systemPrompt")
-    elif isinstance(options, str):
-        template_type = options
 
     print(f"[DEBUG] Using template_type: {template_type}")
 
@@ -616,12 +609,24 @@ def summarize():
     system_prompt = system_prompt or prompt_config.get("systemPrompt", "")
     user_prompt = prompt_config.get("userPrompt", "")
 
-    # If a custom prompt is provided, use it
+    # If a custom prompt is provided, use it (for future extensibility)
     if custom_prompt:
         user_prompt = custom_prompt
 
-    # Format the user prompt with the transcript
-    user_prompt = user_prompt.replace("{transcript}", transcript)
+    # For PDFs, use the provided text
+    if pdf_text:
+        transcript_text = pdf_text
+    # For videos, fetch the full transcript using the URL
+    elif url:
+        transcript_entries = get_video_transcript(url)
+        if not transcript_entries:
+            return jsonify({'error': 'No transcript found for video'}), 404
+        transcript_text = " ".join(entry.get("text", "") for entry in transcript_entries)
+    else:
+        return jsonify({'error': 'No transcript or url provided'}), 400
+
+    print(f"[DEBUG] Joined transcript text (first 500 chars): {transcript_text[:500]}")
+    user_prompt = user_prompt.replace("{transcript}", transcript_text)
 
     # Compose OpenAI messages
     messages = [
