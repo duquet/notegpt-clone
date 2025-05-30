@@ -72,6 +72,8 @@ import { extractPdfText } from "@/utils/pdfUtils";
 import summaryPrompts from "@/utils/summaryPrompts.json";
 import dynamic from "next/dynamic";
 const PDFViewer = dynamic(() => import("@/app/workspace/detail/[id]/components/PDFViewer"), { ssr: false });
+import { TemplateConfig } from '@/types/summary';
+import { validateTemplateType } from '@/utils/templateValidation';
 
 // Add YouTube API types
 declare global {
@@ -731,6 +733,28 @@ export default function VideoDetailsPage() {
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
   console.log("API URL (detail/[id]):", apiUrl);
+
+  const [templates, setTemplates] = useState<TemplateConfig[]>([]);
+  const [templateError, setTemplateError] = useState<string | null>(null);
+
+  // Fetch templates on component mount
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        const response = await fetch('/api/templates');
+        if (!response.ok) {
+          throw new Error('Failed to fetch templates');
+        }
+        const templateConfigs: TemplateConfig[] = await response.json();
+        setTemplates(templateConfigs);
+      } catch (error) {
+        console.error('Error fetching templates:', error);
+        setTemplateError('Failed to load summary templates');
+      }
+    };
+
+    fetchTemplates();
+  }, []);
 
   // Fetch video info (yt-dlp)
   useEffect(() => {
@@ -1444,47 +1468,27 @@ export default function VideoDetailsPage() {
       setIsSummarizing(true);
       performanceMetrics.current.summaryStart = Date.now();
 
-      // Use extracted PDF text for PDFs, transcript for videos
       const fullContent = isPDF
         ? pdfText
-        : translatedSegments.map((segment) => segment.text).join(" ");
+        : `https://www.youtube.com/watch?v=${params.id}`;
 
-      // Select the correct prompt for PDFs
-      let result;
-      if (templateType === "quiz-flashcards") {
-        let quizPrompt;
-        if (isPDF) {
-          // Use the PDF flashcard prompt from summaryPrompts
-          // The actual content for the user prompt isn't really needed if the system prompt handles it
-          // We mainly need the system prompt here.
-          quizPrompt = summaryPrompts["pdf-flashcard"].userPrompt; // Keep this simple or make it more specific if needed
-        } else {
-          // Use the video flashcard prompt
-          quizPrompt = `Create an interactive quiz with flashcards based on this content. Generate 10-15 question-answer pairs that test understanding of the key concepts, facts, and insights. Return ONLY a valid JSON array with objects having this structure: { "question": "...", "answer": "...", "difficulty": "(easy|medium|hard)", "category": "..." }. Do NOT include markdown formatting or code blocks, just the raw JSON array: \n\n${fullContent}`;
-        }
-        // Call summarizeTranscript, ensuring systemPrompt is passed for PDFs
-        result = await summarizeTranscript(fullContent, {
-          templateType: templateType,
-          customPrompt: quizPrompt, // This might be less important now
-          systemPrompt: isPDF
-            ? summaryPrompts["pdf-flashcard"].systemPrompt
-            : undefined, // Pass the detailed system prompt for PDFs
-        });
-      } else {
-        // Regular approach for other templates (including the initial PDF summary)
-        // Ensure system prompt is passed for default PDF summary too
-        const effectivePrompt =
-          isPDF && templateType === "default"
-            ? summaryPrompts["pdf-default"].userPrompt
-            : prompt;
-        result = await summarizeTranscript(fullContent, {
-          templateType: templateType,
-          customPrompt: effectivePrompt,
-          systemPrompt: isPDF
-            ? summaryPrompts["pdf-default"].systemPrompt
-            : undefined, // Pass the detailed system prompt for PDFs
-        });
+      const response = await fetch('/api/summarize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: fullContent,
+          templateType,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate summary');
       }
+
+      const result = await response.text();
 
       // Add new card or update existing default card
       const cardId = `summary-${Date.now()}`;
@@ -1492,56 +1496,19 @@ export default function VideoDetailsPage() {
         (card) => card.type === "default"
       );
 
-      if (templateType === "default") {
-        // Handle default summary (update existing or add new)
-        setMarkdownContent(result); // Update main display area
-        // We might not need to parse sections for the main area anymore if using cards
-        // const sections = parseSummaryResponse(result, templateType);
-        // setSummaryContent(sections.summary);
-        // setKeyInsightsContent(sections.keyInsights);
-        // setHighlightsContent(sections.highlights);
-        // setConclusionContent(sections.conclusion);
-
-        if (existingDefaultCardIndex > -1) {
-          // Update existing default card
-          setSummaryCards((prevCards) =>
-            prevCards.map((card, index) =>
-              index === existingDefaultCardIndex
-                ? {
-                    ...card,
-                    content: result,
-                    title: isPDF ? "PDF Summary" : "Summary",
-                  }
-                : card
-            )
-          );
-        } else {
-          // Add new default card if none exists
-          setSummaryCards((prevCards) => [
-            {
-              id: cardId,
-              title: isPDF ? "PDF Summary" : "Summary",
-              content: result,
-              type: "default",
-            },
-            ...prevCards.filter((card) => card.type !== "default"), // Ensure only one default card exists
-          ]);
-        }
-      } else if (templateType === "quiz-flashcards") {
-        // Handle flashcards
+      if (templateType === "quiz-flashcards") {
         const flashcards = parseSummaryResponse(result, templateType);
         setSummaryCards((prevCards) => [
           ...prevCards,
           {
             id: cardId,
             title: title || (isPDF ? "PDF Flash Cards" : "AI Flash Cards"),
-            content: result, // Store raw response for potential debugging/display
+            content: result,
             type: templateType,
-            flashcards: flashcards, // Store parsed flashcards
+            flashcards: flashcards,
           },
         ]);
       } else {
-        // Handle other custom templates
         setSummaryCards((prevCards) => [
           ...prevCards,
           {
@@ -1552,16 +1519,12 @@ export default function VideoDetailsPage() {
           },
         ]);
       }
+
       performanceMetrics.current.summaryEnd = Date.now();
     } catch (error) {
       performanceMetrics.current.summaryEnd = Date.now();
       console.error("Error generating summary:", error);
-      setSummaryContent(
-        "An error occurred while generating the summary. Please try again."
-      );
-      setMarkdownContent(
-        "**Summary**\n\nAn error occurred while generating the summary. Please try again."
-      );
+      setTemplateError(error instanceof Error ? error.message : 'Failed to generate summary');
     } finally {
       setIsSummarizing(false);
     }
@@ -1569,39 +1532,14 @@ export default function VideoDetailsPage() {
 
   // Helper function to parse the OpenAI response
   const parseSummaryResponse = (response: string, templateType?: string) => {
-    // If it's a quiz flashcard type, try to parse the JSON
+    // Handle quiz-flashcards format
     if (templateType === "quiz-flashcards") {
       try {
-        console.log("Parsing quiz flashcards from response:", response);
-
-        // Extract JSON from the markdown code block if it exists
+        // Find JSON array in the response
         const jsonMatch = response.match(/```json\n([\s\S]*?)\n```/);
         if (jsonMatch && jsonMatch[1]) {
-          console.log("Found JSON code block:", jsonMatch[1]);
-          try {
-            const parsed = JSON.parse(jsonMatch[1]);
-            console.log("Successfully parsed JSON from code block:", parsed);
-            return parsed;
-          } catch (parseErr) {
-            console.error("Error parsing JSON from code block:", parseErr);
-          }
+          return JSON.parse(jsonMatch[1]);
         }
-
-        // If no code block or parsing failed, try finding JSON array in the text
-        const jsonArrayMatch = response.match(/\[\s*\{[\s\S]*\}\s*\]/);
-        if (jsonArrayMatch) {
-          console.log("Found JSON array in text:", jsonArrayMatch[0]);
-          try {
-            const parsed = JSON.parse(jsonArrayMatch[0]);
-            console.log("Successfully parsed JSON array from text:", parsed);
-            return parsed;
-          } catch (parseErr) {
-            console.error("Error parsing JSON array from text:", parseErr);
-          }
-        }
-
-        // If all parsing attempts fail, create a sample flashcard so we don't get the "No flash cards available" message
-        console.log("All parsing attempts failed, creating sample flashcards");
         return [
           {
             question: "What was discussed in this content?",
@@ -1613,7 +1551,6 @@ export default function VideoDetailsPage() {
         ];
       } catch (err) {
         console.error("Error parsing quiz flashcards JSON:", err);
-        // Return a sample flashcard so something appears
         return [
           {
             question: "What was discussed in this content?",
@@ -1626,136 +1563,62 @@ export default function VideoDetailsPage() {
       }
     }
 
-    // Default structure for regular summaries
-    const defaultReturn = {
-      summary: "",
-      keyInsights: "",
-      highlights: "",
-      conclusion: "",
-    };
+    // Handle different template types
+    switch (templateType) {
+      case "chapter":
+        return {
+          tableOfContents: response.match(/\*\*Table of Contents\*\*\s*([\s\S]*?)(?=\*\*Chapter Summaries\*\*|\*\*Key Takeaways\*\*|$)/i)?.[1]?.trim() || "",
+          chapterSummaries: response.match(/\*\*Chapter Summaries\*\*\s*([\s\S]*?)(?=\*\*Key Takeaways\*\*|$)/i)?.[1]?.trim() || "",
+          keyTakeaways: response.match(/\*\*Key Takeaways\*\*\s*([\s\S]*?)$/i)?.[1]?.trim() || "",
+        };
 
-    try {
-      // Try to find all sections with the new order (highlights before key insights)
-      const summaryMatch = response.match(
-        /\*\*Summary\*\*\s*([\s\S]*?)(?=\*\*Highlights\*\*|\*\*Key Insights\*\*|\*\*Conclusion\*\*|$)/i
-      );
-      const highlightsMatch = response.match(
-        /\*\*Highlights\*\*\s*([\s\S]*?)(?=\*\*Key Insights\*\*|\*\*Conclusion\*\*|$)/i
-      );
-      const keyInsightsMatch = response.match(
-        /\*\*Key Insights\*\*\s*([\s\S]*?)(?=\*\*Conclusion\*\*|$)/i
-      );
-      const conclusionMatch = response.match(
-        /\*\*Conclusion\*\*\s*([\s\S]*?)$/i
-      );
+      case "core-points":
+        return {
+          corePoints: response.match(/\*\*Core Points\*\*\s*([\s\S]*?)(?=\*\*Key Conclusions\*\*|\*\*Critical Details\*\*|$)/i)?.[1]?.trim() || "",
+          keyConclusions: response.match(/\*\*Key Conclusions\*\*\s*([\s\S]*?)(?=\*\*Critical Details\*\*|$)/i)?.[1]?.trim() || "",
+          criticalDetails: response.match(/\*\*Critical Details\*\*\s*([\s\S]*?)$/i)?.[1]?.trim() || "",
+        };
 
-      if (summaryMatch && summaryMatch[1]) {
-        defaultReturn.summary = summaryMatch[1].trim();
-      }
+      case "legal":
+        return {
+          documentType: response.match(/\*\*Document Type & Purpose\*\*\s*([\s\S]*?)(?=\*\*Key Legal Terms\*\*|\*\*Rights & Obligations\*\*|$)/i)?.[1]?.trim() || "",
+          keyLegalTerms: response.match(/\*\*Key Legal Terms\*\*\s*([\s\S]*?)(?=\*\*Rights & Obligations\*\*|\*\*Liabilities & Risks\*\*|$)/i)?.[1]?.trim() || "",
+          rightsObligations: response.match(/\*\*Rights & Obligations\*\*\s*([\s\S]*?)(?=\*\*Liabilities & Risks\*\*|\*\*Important Clauses\*\*|$)/i)?.[1]?.trim() || "",
+          liabilitiesRisks: response.match(/\*\*Liabilities & Risks\*\*\s*([\s\S]*?)(?=\*\*Important Clauses\*\*|\*\*Procedural Requirements\*\*|$)/i)?.[1]?.trim() || "",
+          importantClauses: response.match(/\*\*Important Clauses\*\*\s*([\s\S]*?)(?=\*\*Procedural Requirements\*\*|$)/i)?.[1]?.trim() || "",
+          proceduralRequirements: response.match(/\*\*Procedural Requirements\*\*\s*([\s\S]*?)$/i)?.[1]?.trim() || "",
+        };
 
-      if (highlightsMatch && highlightsMatch[1]) {
-        defaultReturn.highlights = highlightsMatch[1].trim();
-      }
+      case "meeting":
+        return {
+          overview: response.match(/\*\*Meeting Overview\*\*\s*([\s\S]*?)(?=\*\*Key Discussion Points\*\*|\*\*Decisions Made\*\*|$)/i)?.[1]?.trim() || "",
+          discussionPoints: response.match(/\*\*Key Discussion Points\*\*\s*([\s\S]*?)(?=\*\*Decisions Made\*\*|\*\*Action Items\*\*|$)/i)?.[1]?.trim() || "",
+          decisions: response.match(/\*\*Decisions Made\*\*\s*([\s\S]*?)(?=\*\*Action Items\*\*|\*\*Open Issues\*\*|$)/i)?.[1]?.trim() || "",
+          actionItems: response.match(/\*\*Action Items\*\*\s*([\s\S]*?)(?=\*\*Open Issues\*\*|\*\*Next Steps\*\*|$)/i)?.[1]?.trim() || "",
+          openIssues: response.match(/\*\*Open Issues\*\*\s*([\s\S]*?)(?=\*\*Next Steps\*\*|$)/i)?.[1]?.trim() || "",
+          nextSteps: response.match(/\*\*Next Steps\*\*\s*([\s\S]*?)$/i)?.[1]?.trim() || "",
+        };
 
-      if (keyInsightsMatch && keyInsightsMatch[1]) {
-        defaultReturn.keyInsights = keyInsightsMatch[1].trim();
-      }
-
-      if (conclusionMatch && conclusionMatch[1]) {
-        defaultReturn.conclusion = conclusionMatch[1].trim();
-      }
-    } catch (err) {
-      console.error("Error parsing summary response:", err);
+      // Default case for standard summary format
+      default:
+        return {
+          summary: response.match(/\*\*Summary\*\*\s*([\s\S]*?)(?=\*\*Highlights\*\*|\*\*Key Insights\*\*|\*\*Conclusion\*\*|$)/i)?.[1]?.trim() || "",
+          highlights: response.match(/\*\*Highlights\*\*\s*([\s\S]*?)(?=\*\*Key Insights\*\*|\*\*Conclusion\*\*|$)/i)?.[1]?.trim() || "",
+          keyInsights: response.match(/\*\*Key Insights\*\*\s*([\s\S]*?)(?=\*\*Conclusion\*\*|$)/i)?.[1]?.trim() || "",
+          conclusion: response.match(/\*\*Conclusion\*\*\s*([\s\S]*?)$/i)?.[1]?.trim() || "",
+        };
     }
-
-    return defaultReturn;
   };
 
   // Handle selection of a summary template
-  const handleSummaryTemplate = (template: string) => {
-    // Create a prompt based on the selected template
-    let prompt = "";
-    let title = "";
-
-    switch (template) {
-      case "chapter":
-        title = "Chapter Summary";
-        prompt =
-          "Create a chapter-by-chapter summary with a table of contents structure. Break down the content into logical sections, and provide detailed summaries for each chapter.";
-        break;
-      case "core-points":
-        title = "Core Points Summary";
-        prompt =
-          "Summarize the core points, key conclusions, and important details of this content. Focus on extracting the most critical information and insights.";
-        break;
-      case "notes":
-        title = "AI Note";
-        prompt =
-          "Generate structured, comprehensive notes in an organized format that would help someone review and retain this knowledge easily. Include bullet points, hierarchical structure, and highlight key concepts.";
-        break;
-      case "industry":
-        title = "Industry & Market Analysis";
-        prompt =
-          "Analyze this content from a business perspective. Identify industry trends, market insights, competitive analysis, and key components relevant to business strategy.";
-        break;
-      case "financial":
-        title = "Financial Summary";
-        prompt =
-          "Extract key financial insights and metrics from this content. Highlight important financial data, performance indicators, and strategic financial implications.";
-        break;
-      case "annual-report":
-        title = "Annual Report Summary";
-        prompt =
-          "Summarize this as if it were an annual report. Include background information, key decisions, important data points, achievements, challenges, and future outlook.";
-        break;
-      case "legal":
-        title = "Legal Document Summary";
-        prompt =
-          "Summarize this content as if it were a legal document. Highlight key legal terms, obligations, rights, potential liabilities, and important clauses in a structured format.";
-        break;
-      case "contract":
-        title = "Contract Analysis";
-        prompt =
-          "Review this content as if it were a contract. Identify potential liabilities, obligations, risks, terms, conditions, and important details that would be relevant in a contract review.";
-        break;
-      case "meeting":
-        title = "Meeting Minutes";
-        prompt =
-          "Summarize this content as if it were meeting minutes. Capture key discussion points, decisions made, action items, and essential information for those who couldn't attend.";
-        break;
-      case "essay":
-        title = "Academic Essay Resource";
-        prompt =
-          "Generate an academic summary of this content with properly structured sections that would be useful for research or essay writing. Include key concepts, evidence, and citations where relevant.";
-        break;
-      case "blog":
-        title = "Blog Post Draft";
-        prompt =
-          "Convert this content into an SEO-friendly blog post format with an engaging introduction, well-structured body with subheadings, and a conclusion. Use a conversational yet informative tone.";
-        break;
-      case "flashcards":
-        title = "Study Flashcards";
-        prompt =
-          "Generate a set of flashcards from this content with clear questions on one side and concise answers on the other. Focus on key concepts, definitions, and important facts.";
-        break;
-      case "podcast":
-        title = "Podcast Script";
-        prompt =
-          "Create a conversational podcast script based on this content. Include an engaging introduction, main discussion points, transitions between topics, and a conclusion that would work well in audio format.";
-        break;
-      case "quiz-flashcards":
-        title = "AI Flash Cards";
-        prompt =
-          "Create an interactive quiz with flashcards based on this content. Generate 10-15 question-answer pairs that test understanding of the key concepts, facts, and insights.";
-        break;
-      default:
-        title = "Summary";
-        prompt =
-          "Summarize this content in a clear, concise way highlighting the main points and key insights.";
+  const handleSummaryTemplate = (templateType: string) => {
+    const template = templates.find(t => t.type === templateType);
+    if (!template) {
+      setTemplateError(`Invalid template type: ${templateType}`);
+      return;
     }
 
-    // Call handleSummarize with the generated prompt and title
-    handleSummarize(prompt, title, template);
+    handleSummarize(undefined, template.title, templateType);
     handleSummaryMenuClose();
   };
 
@@ -2962,26 +2825,15 @@ export default function VideoDetailsPage() {
                         General Summaries
                       </ListSubheader>
 
-                      <MenuItem
-                        onClick={() => handleSummaryTemplate("chapter")}
-                        sx={{ py: 0.8, px: 2, fontSize: "0.85rem" }}
-                      >
-                        Chapter Summary
-                      </MenuItem>
-
-                      <MenuItem
-                        onClick={() => handleSummaryTemplate("core-points")}
-                        sx={{ py: 0.8, px: 2, fontSize: "0.85rem" }}
-                      >
-                        Core Points Summary
-                      </MenuItem>
-
-                      <MenuItem
-                        onClick={() => handleSummaryTemplate("notes")}
-                        sx={{ py: 0.8, px: 2, fontSize: "0.85rem" }}
-                      >
-                        AI Note
-                      </MenuItem>
+                      {templates.map((template) => (
+                        <MenuItem
+                          key={template.type}
+                          onClick={() => handleSummaryTemplate(template.type)}
+                          sx={{ py: 0.8, px: 2, fontSize: "0.85rem" }}
+                        >
+                          {template.title}
+                        </MenuItem>
+                      ))}
 
                       <Divider sx={{ my: 1 }} />
 
@@ -4318,6 +4170,19 @@ export default function VideoDetailsPage() {
           </DialogActions>
         </Dialog>
       </Box>
+
+      {/* Add error display */}
+      {templateError && (
+        <Snackbar
+          open={!!templateError}
+          autoHideDuration={6000}
+          onClose={() => setTemplateError(null)}
+        >
+          <Alert severity="error" onClose={() => setTemplateError(null)}>
+            {templateError}
+          </Alert>
+        </Snackbar>
+      )}
     </Box>
   );
 }
